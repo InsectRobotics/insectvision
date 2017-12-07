@@ -6,63 +6,6 @@ LENS_RADIUS = 1  # mm
 A_lens = np.pi * np.square(LENS_RADIUS)
 
 
-# def angles_distribution(nb_lenses, fov):
-#     theta = np.deg2rad(fov / 2)  # angular distance of the outline from the zenith
-#
-#     r_l = LENS_RADIUS  # the small radius of a hexagon (mm)
-#     R_l = r_l * 2 / np.sqrt(3)  # the big radius of a lens (mm)
-#     S_l = 3 * r_l * R_l  # area of a lens (mm^2)
-#
-#     S_a = nb_lenses * S_l  # area of the dome surface (mm^2)
-#     R_c = np.sqrt(S_a / (2 * np.pi * (1. - np.cos(theta))))  # radius of the curvature (mm)
-#     S_c = 4 * np.pi * np.square(R_c)  # area of the whole sphere (mm^2)
-#     R_a = R_c * np.sin(theta)  # radius of the dome's disk
-#     C_a = 2 * np.pi * R_a  # perimeter of the dome's disk
-#     C_c = 2 * np.pi * R_c  # perimeter of the sphere
-#
-#     d_theta = 2 * np.pi / (C_c / (2 * r_l))  # the angular distance of each row of ommatidia in the equator
-#     print "d_theta:", np.rad2deg(d_theta)
-#     d = 2 * r_l
-#     s_default = 0
-#     thetas = np.empty(0, dtype=np.float32)
-#     phis = np.empty(0, dtype=np.float32)
-#     i = 0
-#     while thetas.size != nb_lenses:
-#         C = C_a
-#         theta = np.deg2rad(fov / 2)  # angular distance of the outline from the zenith
-#         if thetas.size > nb_lenses:
-#             s_default = np.maximum(0, s_default + (1. / (i + 1.)) * r_l)
-#         else:
-#             s_default = np.maximum(0, s_default - (1. / (i + 1.)) * r_l)
-#         print i, theta, thetas.size, s_default
-#         thetas = np.empty(0, dtype=np.float32)
-#         phis = np.empty(0, dtype=np.float32)
-#         s = s_default
-#         while theta >= 0:
-#             n = int(np.floor(C / (d + s)))
-#             if n <= 0:
-#                 break
-#             s = C / n - d
-#             print i,
-#             print "n:", n, "s:", s, "d:", d,
-#             d_phi = 2 * np.pi / n
-#             print "d_phi:", np.rad2deg(d_phi),
-#             thetas = np.append(thetas, np.ones(n) * theta)
-#             phis = np.append(phis, (np.linspace(0, 2 * np.pi, n, endpoint=False) + (d_phi / 2)) % (2 * np.pi))
-#             theta -= d_theta  # * (1 - s / d)
-#             print "theta:", np.rad2deg(theta)
-#             R = R_c * np.sin(theta)
-#             C = 2 * np.pi * R
-#             s = 0.
-#         i += 1
-#         if i > 100:
-#             break
-#         print thetas.shape, phis.shape
-#     print thetas.shape, phis.shape
-#
-#     return thetas, phis
-
-
 def angles_distribution(nb_lenses, fov):
     theta = np.deg2rad(fov / 2)  # angular distance of the outline from the zenith
 

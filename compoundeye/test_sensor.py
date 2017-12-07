@@ -1,12 +1,14 @@
 import numpy as np
-from sensor import CompassSensor, NB_EN, decode_sun, mse
-from sky import get_seville_observer, ChromaticitySkyModel
+from sensor import CompassSensor, NB_EN, decode_sun
+from learn import get_loss
+from sky import get_seville_observer, SkyModel
 from datetime import datetime, timedelta
 import os
 
 
 __dir__ = os.path.dirname(os.path.realpath(__file__)) + "/"
 __datadir__ = __dir__ + "../data/datasets/"
+mse = get_loss("ad3")
 
 
 if __name__ == "__main__":
@@ -32,7 +34,7 @@ if __name__ == "__main__":
 
     # create and generate a sky instance
     observer.date = datetime.now()
-    sky = ChromaticitySkyModel(observer=observer, nside=1)
+    sky = SkyModel(observer=observer, nside=1)
     sky.generate()
 
     x, t = data['x'], data['t']

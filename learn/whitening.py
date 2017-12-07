@@ -16,7 +16,14 @@ def svd2pca(U, S, V, epsilon=10e-5):
     """
     Creates the PCA transformation matrix using the SVD.
 
+    :param U:
+    :type U: np.ndarray
+    :param S:
+    :type S: np.ndarray
+    :param V:
+    :type V: np.ndarray
     :param epsilon: the smoothing parameter of the data
+    :type epsilon: float
     """
     return (np.diag(1. / np.sqrt(S + epsilon))).dot(U.T)
 

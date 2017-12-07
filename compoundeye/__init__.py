@@ -1,3 +1,5 @@
-from .model import *
-from .sensor import *
-from .utils import *
+from .beeeye import load_both_eyes as bee_eyes
+from .geometry import angles_distribution, fibonacci_sphere
+from .model import CompoundEye, WLFilter, POLFilter, SkyBlue
+from .sensor import CompassSensor, encode_sun, decode_sun
+from .utils import get_microvilli_angle, RNG

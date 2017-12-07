@@ -1,5 +1,6 @@
 import numpy as np
-from utils import sph2vec
+from sphere import sph2vec
+from sphere import angle_between
 
 
 def build_a(values, rdir, c, kernel_size):
@@ -15,38 +16,28 @@ def build_a(values, rdir, c, kernel_size):
     :type kernel_size: float
     """
     window = kernel_size / 2.
-    vdir = sph2vec(rdir[:, 0], rdir[:, 1]).T
-    vc = sph2vec(c[0], c[1])[:, 0]
-    d = np.arccos(vdir.dot(vc))
+    vdir = sph2vec(rdir.T)
+    vc = sph2vec(c)
+    d = np.abs(np.arccos(vdir.T.dot(vc)))
 
     home_i = np.argmin(d)
     home = values[home_i]
     j = d <= window
-    # a = np.zeros((j.sum(), 2))
-    # for count, (dirj, vj) in enumerate(zip(rdir[j], values[j])):
-    #     dj = dirj - rdir[home_i]
-    #     if dj[0] == 0:
-    #         atheta = 0.
-    #     else:
-    #         atheta = (home - vj) / dj[0]
-    #     if dj[1] == 0:
-    #         aphi = 0.
-    #     else:
-    #         aphi = (home - vj) / dj[1]
-    #     a[count] = np.array([aphi, atheta])
 
-    dj = rdir[j] - rdir[home_i]  # TODO: change it to proper angular distance
-    a = ((home - values[j]) / dj.T).T
-    a[dj == 0] = 0
+    a = np.zeros((j.sum(), 2), dtype=float)
+    dj = angle_between(rdir[j], rdir[home_i])
+    di = np.array([home - values[j]] * 2).T
+    zeros = dj == 0
+    a[~zeros] = (di[~zeros] / dj[~zeros].T).T
 
-    return a
+    return a[:, ::-1]
 
 
 def build_b(n_val, o_val, rdir, c, kernel_size):
     window = kernel_size / 2.
-    vdir = sph2vec(rdir[:, 0], rdir[:, 1]).T
-    vc = sph2vec(c[0], c[1])[:, 0]
-    d = np.arccos(vdir.dot(vc))
+    vdir = sph2vec(rdir.T)
+    vc = sph2vec(c)
+    d = np.arccos(vdir.T.dot(vc))
 
     j = d <= window
     return n_val[j] - o_val[j]
@@ -55,9 +46,9 @@ def build_b(n_val, o_val, rdir, c, kernel_size):
 def gaussian_weight(size, rdir, c, even=False):
 
     window = size / 2.
-    vdir = sph2vec(rdir[:, 0], rdir[:, 1]).T
-    vc = sph2vec(c[0], c[1])[:, 0]
-    d = np.arccos(vdir.dot(vc))
+    vdir = sph2vec(rdir.T)
+    vc = sph2vec(c)
+    d = np.arccos(vdir.T.dot(vc))
     j = d <= window
     d = d[j]
 

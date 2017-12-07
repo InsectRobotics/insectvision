@@ -1,19 +1,19 @@
-import numpy as np
-import numpy.linalg as la
-import healpy as hp
-
-from model import CompoundEye, WLFilter
-from utils import pca_kernel
-from sky import ChromaticitySkyModel, sph2vec
-from geometry import fibonacci_sphere, angles_distribution
 import os
 
+import healpy as hp
+import numpy as np
+import numpy.linalg as la
+
+from geometry import fibonacci_sphere, angles_distribution, LENS_RADIUS, A_lens
+from learn.whitening import pca as pca_kernel
+from model import CompoundEye
+from sky import SkyModel
+from code.compass import encode_sph, decode_sph
+from sphere import sph2vec
 
 __dir__ = os.path.dirname(os.path.realpath(__file__)) + "/"
 __datadir__ = __dir__ + "../data/sensor/"
 
-LENS_RADIUS = 1  # mm
-A_lens = np.pi * np.square(LENS_RADIUS)  # mm ** 2
 NB_EN = 8
 DEBUG = False
 
@@ -152,7 +152,7 @@ class CompassSensor(CompoundEye):
     def __call__(self, *args, **kwargs):
         if isinstance(args[0], np.ndarray):
             self._lum = args[0]  # type: np.ndarray
-        elif isinstance(args[0], ChromaticitySkyModel):
+        elif isinstance(args[0], SkyModel):
             self.set_sky(args[0])
         else:
             raise AttributeError("Unknown attribute type: %s" % type(args[0]))
@@ -198,7 +198,6 @@ class CompassSensor(CompoundEye):
         """
         import matplotlib.pyplot as plt
         from matplotlib.patches import Ellipse, Rectangle
-        from sky.utils import sph2vec
 
         xyz = sph2vec(np.pi/2 - sensor.theta, sensor.phi, sensor.R_c)
 
@@ -361,32 +360,12 @@ class CompassSensor(CompoundEye):
 
 
 def encode_sun(lon, lat):
-    return np.sin(np.linspace(0, 2 * np.pi, NB_EN, endpoint=False) + lon + np.pi / 2) * lat / (NB_EN / 2.)
+    return encode_sph(lat, lon, length=NB_EN)
 
 
 def decode_sun(x):
-    fund_freq = np.fft.fft(x)[1]
-    lon = -np.angle(np.conj(fund_freq))
-    lat = np.absolute(fund_freq)
+    lat, lon = decode_sph(x)
     return lon, lat
-
-
-def mse(y, t, theta=True, phi=True):
-    if theta:
-        thy = y[:, 1]
-        tht = t[:, 1]
-    else:
-        thy = np.zeros_like(y[:, 1])
-        tht = np.zeros_like(t[:, 1])
-    if phi:
-        phy = y[:, 0]
-        pht = t[:, 0]
-    else:
-        phy = np.zeros_like(y[:, 0])
-        pht = np.zeros_like(t[:, 0])
-    v1 = sph2vec(thy, phy)
-    v2 = sph2vec(tht, pht)
-    return np.rad2deg(np.arccos((v1 * v2).sum(axis=0)).mean())
 
 
 if __name__ == "__main__":
@@ -402,7 +381,7 @@ if __name__ == "__main__":
     observer.date = datetime.now()
 
     # create and generate a sky instance
-    sky = ChromaticitySkyModel(observer=observer, nside=1)
+    sky = SkyModel(observer=observer, nside=1)
     sky.generate()
 
     # lon, lat = sky.lon, sky.lat

@@ -2,17 +2,6 @@ import numpy as np
 import numpy.linalg as la
 
 
-def rotation_matrix(theta):
-    return np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-
-
-def angle_between(ang1, ang2, sign=True):
-    d = (ang1 - ang2 + np.pi) % (2 * np.pi) - np.pi
-    if not sign:
-        d = np.abs(d)
-    return d
-
-
 def sph2vec(theta, phi=None, rho=1.):
     """
     Transforms the spherical coordinates to a cartesian 3D vector.
@@ -22,22 +11,16 @@ def sph2vec(theta, phi=None, rho=1.):
     :return vec:    the cartessian vector
     """
     if phi is None:
-        if theta.ndim == 1:
-            phi = theta[1]
-            if theta.shape[0] > 2:
-                rho = theta[2]
-            theta = theta[0]
-        else:
-            phi = theta[..., 1]
-            if theta.shape[1] > 2:
-                rho = theta[..., 2]
-            theta = theta[..., 0]
+        phi = theta[1]
+        if theta.shape[0] > 2:
+            rho = theta[2]
+        theta = theta[0]
 
     x = rho * (np.sin(phi) * np.cos(theta))
     y = rho * (np.cos(phi) * np.cos(theta))
     z = rho * np.sin(theta)
 
-    return np.asarray([x, y, z]).T
+    return np.asarray([x, y, z])
 
 
 def vec2sph(vec):
@@ -48,7 +31,7 @@ def vec2sph(vec):
     :return phi:    azimuth
     :return rho:    radius
     """
-    rho = la.norm(vec, axis=-1)  # length of the radius
+    rho = la.norm(vec, axis=0)  # length of the radius
 
     if vec.ndim == 1:
         if rho == 0:
@@ -59,11 +42,11 @@ def vec2sph(vec):
     else:
         rho[rho == 0] = 1.
         v = vec / rho  # normalised vector
-        phi = np.arctan2(v[..., 0], v[..., 1])  # azimuth
-        theta = np.pi / 2 - np.arccos(v[..., 2])  # elevation
+        phi = np.arctan2(v[0], v[1])  # azimuth
+        theta = np.pi / 2 - np.arccos(v[2])  # elevation
 
     theta, phi = sphadj(theta, phi)  # bound the spherical coordinates
-    return np.asarray([theta, phi, rho]).T
+    return np.asarray([theta, phi, rho])
 
 
 # conditions to restrict the angles to correct quadrants
@@ -175,7 +158,8 @@ def azirot(vec, phi):
 
 
 if __name__ == "__main__":
-    v = np.array([[1, 0, 0]], dtype=float)
+    v = np.array([[1], [0], [0]], dtype=float)
+    # v = np.array([1, 0, 0], dtype=float)
     s = vec2sph(v)
     print np.rad2deg(s)
     print sph2vec(s)

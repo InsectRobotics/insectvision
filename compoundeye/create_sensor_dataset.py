@@ -1,6 +1,6 @@
 import numpy as np
 from sensor import CompassSensor, NB_EN, encode_sun
-from sky import get_seville_observer, ChromaticitySkyModel
+from sky import get_seville_observer, SkyModel
 from datetime import datetime, timedelta
 import os
 
@@ -31,14 +31,14 @@ if __name__ == "__main__":
     months = (np.arange(start_month-1, start_month + nb_months - 1, 1) % 12) + 1
     for month in months:
         observer.date = datetime(year=2017, month=month, day=start_day, hour=0, minute=0, second=0)
-        sky = ChromaticitySkyModel(observer=observer, nside=1)
+        sky = SkyModel(observer=observer, nside=1)
         rising = observer.next_rising(sky.sun).datetime() + timedelta(hours=1)
         setting = observer.next_setting(sky.sun).datetime() - timedelta(hours=1)
 
         observer.date = rising
         while observer.date.datetime() < setting:
             print "Date:", observer.date,
-            sky = ChromaticitySkyModel(observer=observer, nside=1)
+            sky = SkyModel(observer=observer, nside=1)
             sky.generate()
 
             r = sensor.facing_direction

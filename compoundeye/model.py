@@ -1,6 +1,6 @@
 import numpy as np
-from utils import get_microvilli_angle, load_beeeye
-from sky import SkyModel, ChromaticitySkyModel
+from utils import get_microvilli_angle
+from sky import SkyModel
 
 SkyBlue = np.array([.05, .53, .79])[..., np.newaxis]
 # SkyBlue = np.array([1.0, 1.0, 1.0])[..., np.newaxis]
@@ -189,25 +189,10 @@ class POLFilter(Filter):
         return np.sqrt(np.square(E).sum(axis=0))
 
 
-def sph2vec(theta, phi, rho=1.):
-    """
-    Transforms the spherical coordinates to a cartesian 3D vector.
-    :param theta: elevation
-    :param phi:   azimuth
-    :param rho:   radius length
-    :return vec:    the cartessian vector
-    """
-
-    y = rho * (np.sin(phi) * np.cos(theta))
-    x = rho * (np.cos(phi) * np.cos(theta))
-    z = rho * np.sin(theta)
-
-    return np.asarray([x, -y, z])
-
-
 if __name__ == "__main__":
     from datetime import datetime
     from ephem import city
+    from beeeye import load_both_eyes
     import matplotlib.pyplot as plt
 
     angle = 0
@@ -215,11 +200,11 @@ if __name__ == "__main__":
     # initialise sky
     obs = city("Edinburgh")
     obs.date = datetime.now()
-    sky = ChromaticitySkyModel(observer=obs, nside=1)
+    sky = SkyModel(observer=obs, nside=1)
     sky.generate()
 
     # initialise ommatidia features
-    ommatidia_left, ommatidia_right = load_beeeye()
+    ommatidia_left, ommatidia_right = load_both_eyes()
     l_eye = CompoundEye(ommatidia_left)
     l_eye.rotate(angle)
     r_eye = CompoundEye(ommatidia_right)
