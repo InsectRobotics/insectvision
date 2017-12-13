@@ -15,6 +15,7 @@ def build_a(values, rdir, c, kernel_size):
     :param kernel_size:
     :type kernel_size: float
     """
+
     window = kernel_size / 2.
     vdir = sph2vec(rdir.T)
     vc = sph2vec(c)
@@ -75,6 +76,7 @@ if __name__ == "__main__":
 
     vals1 = vals1.reshape((-1,))
     vals2 = vals2.reshape((-1,))
+    print vals1.shape, vals2.shape, dirs.shape
     A = build_a(vals2, dirs, centers[0], ksize)
     B = build_b(vals2, vals1, dirs, centers[0], ksize)
     W = gaussian_weight(ksize, dirs, centers[0], even=False)
