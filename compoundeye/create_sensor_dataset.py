@@ -11,7 +11,7 @@ __datadir__ = __dir__ + "../data/datasets/"
 if __name__ == "__main__":
 
     # parameters
-    nb_lenses = 100
+    nb_lenses = 60
     fov = 60
     observer = get_seville_observer()
     nb_months = 7
@@ -31,31 +31,37 @@ if __name__ == "__main__":
     months = (np.arange(start_month-1, start_month + nb_months - 1, 1) % 12) + 1
     for month in months:
         observer.date = datetime(year=2017, month=month, day=start_day, hour=0, minute=0, second=0)
-        sky = SkyModel(observer=observer, nside=1)
+        sky = SkyModel(observer=observer)
         rising = observer.next_rising(sky.sun).datetime() + timedelta(hours=1)
         setting = observer.next_setting(sky.sun).datetime() - timedelta(hours=1)
 
         observer.date = rising
         while observer.date.datetime() < setting:
-            print "Date:", observer.date,
-            sky = SkyModel(observer=observer, nside=1)
-            sky.generate()
+            sensor.sky = SkyModel(observer=observer)
 
-            r = sensor.facing_direction
-            for i in xrange(360):
-                sensor.rotate(np.deg2rad(1))
-                sensor.set_sky(sky)
-                lon = (sky.lon + sensor.facing_direction) % (2 * np.pi)
-                lat = sky.lat
+            for k in xrange(9):
+                for j in xrange(9):
+                    print "Date:", observer.date,
+                    print "Roll:", np.rad2deg(sensor.yaw_pitch_roll[2]),
+                    print "Pitch:", np.rad2deg(sensor.yaw_pitch_roll[1]),
+                    for i in xrange(360):
+                        lon = (sky.lon + sensor.yaw_pitch_roll[0]) % (2 * np.pi)
+                        lat = sky.lat
 
-                x = np.vstack([x, sensor.L.flatten()])
-                t = np.vstack([t, encode_sun(lon, lat)])
-                m = np.vstack([m, observer.date.datetime()])
-                if i % 10 == 0:
-                    print '.',
-            print " ", x.shape, t.shape
+                        x = np.vstack([x, sensor.L.flatten()])
+                        t = np.vstack([t, encode_sun(lon, lat)])
+                        m = np.vstack([m, observer.date.datetime()])
+                        if i % 10 == 0:
+                            print '.',
+                            # print '  ' * (j+1) ** 2,
+                        sensor.rotate(yaw=np.deg2rad(1))
+                    print " ", x.shape, t.shape
+                    sensor.rotate(yaw=-sensor.yaw_pitch_roll[0])
+                    sensor.rotate(pitch=np.deg2rad(10))
+                sensor.rotate(pitch=-sensor.yaw_pitch_roll[1])
+                sensor.rotate(roll=np.deg2rad(10))
+            sensor.rotate(roll=-sensor.yaw_pitch_roll[2])
 
-            sensor.facing_direction = r
             observer.date = observer.date.datetime() + delta
 
     np.savez_compressed(__datadir__ + "%s.npz" % name, x=x, t=t)

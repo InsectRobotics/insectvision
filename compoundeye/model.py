@@ -11,20 +11,24 @@ class CompoundEye(object):
     def __init__(self, ommatidia, central_microvili=(np.pi/6, np.pi/18), noise_factor=.1,
                  activate_dop_sensitivity=False):
 
+        # the eye facing direction
+        self.yaw_pitch_roll = np.zeros(3)
+
         # eye specifications (ommatidia topography)
-        self.theta = ommatidia[:, 0]
-        self.phi = ommatidia[:, 1]
+        self._sky = SkyModel()
+        self.theta_global = ommatidia[:, 0]
+        self.phi_global = ommatidia[:, 1]
         if ommatidia.shape[1] > 3:
             self._dop_filter = ommatidia[:, 3]
             self._aop_filter = ommatidia[:, 2]
         elif ommatidia.shape[1] > 2:
             self._aop_filter = ommatidia[:, 2]
             _, self._dop_filter = get_microvilli_angle(
-                self.theta, self.phi, theta=central_microvili[0], phi=central_microvili[1], n=noise_factor
+                self.theta_global, self.phi_global, theta=central_microvili[0], phi=central_microvili[1], n=noise_factor
             )
         else:
             self._aop_filter, self._dop_filter = get_microvilli_angle(
-                self.theta, self.phi, theta=central_microvili[0], phi=central_microvili[1], n=noise_factor
+                self.theta_global, self.phi_global, theta=central_microvili[0], phi=central_microvili[1], n=noise_factor
             )
         if not activate_dop_sensitivity:
             self._dop_filter[:] = 1.
@@ -32,13 +36,6 @@ class CompoundEye(object):
 
         self._channel_filters = {}
         self._update_filters()
-
-        # the raw receptive information
-        self._lum = np.zeros_like(self.theta)
-        self._dop = np.ones_like(self._dop_filter)
-        self._aop = np.zeros_like(self._aop_filter)
-
-        self.facing_direction = 0
 
     def activate_pol_filters(self, value):
         """
@@ -51,6 +48,14 @@ class CompoundEye(object):
         self._active_pol_filters = value
         if value != old_value:
             self._update_filters()
+
+    @property
+    def sky(self):
+        return self._sky
+
+    @sky.setter
+    def sky(self, value):
+        self._sky = value
 
     @property
     def dop_filter(self):
@@ -66,26 +71,69 @@ class CompoundEye(object):
         for kk in ['r', 'g', 'b', 'uv']:
             if kk in ks:
                 k.append(kk)
+        i, d, a = self.sky.L / np.sqrt(2), self.sky.DOP, self.sky.AOP
         lum_channels = np.array([
-            pf(cf(self._lum), self._aop, self._dop) for cf, pf in [self._channel_filters[c] for c in k]
+            pf(cf(i), a, d) for cf, pf in [self._channel_filters[c] for c in k]
         ]).T
         return np.clip(lum_channels, 0, 1)
 
     @property
     def DOP(self):
-        return self._dop
+        return self.sky.DOP
 
     @property
     def AOP(self):
-        return self._aop
+        return self.sky.AOP
 
-    def set_sky(self, sky):
-        self._lum, self._dop, self._aop = sky.get_features(np.pi/2-self.theta, np.pi-self.phi+self.facing_direction)
-        self._lum /= np.sqrt(2)
-        self._dop[np.isnan(self._dop)] = 1.
+    @property
+    def theta_global(self):
+        return (np.pi/2 - self.sky.theta_z + np.pi) % (2 * np.pi) - np.pi  # type: np.ndarray
 
-    def rotate(self, angle):
-        self.facing_direction -= angle
+    @theta_global.setter
+    def theta_global(self, value):
+        """
+        :param value: the ommatidia elevation
+        :type value: np.ndarray
+        :return:
+        """
+        self.sky.theta_z = (np.pi/2 - value + np.pi) % (2 * np.pi) - np.pi
+
+    @property
+    def phi_global(self):
+        return (2 * np.pi - self.sky.phi_z + self.yaw_pitch_roll[0]) % (2 * np.pi) - np.pi
+
+    @phi_global.setter
+    def phi_global(self, value):
+        self.sky.phi_z = (2 * np.pi - value + self.yaw_pitch_roll[0]) % (2 * np.pi) - np.pi
+
+    @property
+    def theta_local(self):
+        theta_z, phi_z = SkyModel.rotate(self.sky.theta_z, self.sky.phi_z, yaw=-self.yaw_pitch_roll[0])
+        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, pitch=-self.yaw_pitch_roll[1])
+        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, roll=-self.yaw_pitch_roll[2])
+        return (np.pi / 2 - theta_z + np.pi) % (2 * np.pi) - np.pi
+
+    @property
+    def phi_local(self):
+        theta_z, phi_z = SkyModel.rotate(self.sky.theta_z, self.sky.phi_z, yaw=-self.yaw_pitch_roll[0])
+        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, pitch=-self.yaw_pitch_roll[1])
+        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, roll=-self.yaw_pitch_roll[2])
+        return (2 * np.pi - phi_z) % (2 * np.pi) - np.pi
+
+    def rotate(self, yaw=0., pitch=0., roll=0.):
+        # rotate back to the default orientation
+        sky = SkyModel.rotate_sky(self.sky, yaw=-self.yaw_pitch_roll[0])
+        sky = SkyModel.rotate_sky(sky, pitch=-self.yaw_pitch_roll[1])
+        sky = SkyModel.rotate_sky(sky, roll=-self.yaw_pitch_roll[2])
+
+        # update the facing direction of the eye
+        self.yaw_pitch_roll = self.rotate_centre(self.yaw_pitch_roll, yaw=yaw, pitch=pitch, roll=roll)
+
+        # rotate the sky according to the new facing direction
+        self.sky = SkyModel.rotate_sky(sky,
+                                       yaw=self.yaw_pitch_roll[0],
+                                       pitch=self.yaw_pitch_roll[1],
+                                       roll=self.yaw_pitch_roll[2])
 
     def _update_filters(self):
 
@@ -103,6 +151,16 @@ class CompoundEye(object):
                 POLFilter(self._aop_filter, self.dop_filter, name="UVPOLFilter")
             ]
         }
+
+    @staticmethod
+    def rotate_centre(centre, yaw=0., pitch=0., roll=0.):
+        centre[[1, 0]] = SkyModel.rotate(np.pi / 2 - centre[1], np.pi - centre[0], yaw=yaw, pitch=pitch)
+
+        centre[0] = (2 * np.pi - centre[0]) % (2 * np.pi) - np.pi
+        centre[1] = (3 * np.pi/2 - centre[1]) % (2 * np.pi) - np.pi
+        centre[2] = (centre[2] + roll + np.pi) % (2 * np.pi) - np.pi
+
+        return centre
 
 
 class Filter(object):
@@ -195,32 +253,34 @@ if __name__ == "__main__":
     from beeeye import load_both_eyes
     import matplotlib.pyplot as plt
 
-    angle = 0
+    angle = [np.pi/2, 0., np.pi/3]
 
     # initialise sky
     obs = city("Edinburgh")
     obs.date = datetime.now()
-    sky = SkyModel(observer=obs, nside=1)
-    sky.generate()
 
     # initialise ommatidia features
     ommatidia_left, ommatidia_right = load_both_eyes()
     l_eye = CompoundEye(ommatidia_left)
-    l_eye.rotate(angle)
+    l_eye.rotate(*angle)
     r_eye = CompoundEye(ommatidia_right)
-    r_eye.rotate(angle)
-    l_eye.set_sky(sky)
-    r_eye.set_sky(sky)
+    r_eye.rotate(*angle)
+    l_eye.sky.obs = obs
+    r_eye.sky.obs = obs
 
     # plot result
     s, p = 20, 4
     # plot eye's structure
+    norm = lambda x: x / 25. / np.sqrt(2)
+
+    r_theta, r_phi = r_eye.theta_local, r_eye.phi_local
+    l_theta, l_phi = l_eye.theta_local, l_eye.phi_local
     if True:
         plt.figure("Compound eyes - Structure", figsize=(8, 21))
 
-        lum_r = l_eye._lum + (1. - l_eye._lum) * .05
-        lum_g = l_eye._lum + (1. - l_eye._lum) * .53
-        lum_b = l_eye._lum + (1. - l_eye._lum) * .79
+        lum_r = norm(l_eye.sky.L) + (1. - norm(l_eye.sky.L)) * .05
+        lum_g = norm(l_eye.sky.L) + (1. - norm(l_eye.sky.L)) * .53
+        lum_b = norm(l_eye.sky.L) + (1. - norm(l_eye.sky.L)) * .79
         L = np.clip(np.concatenate((
             lum_r[..., np.newaxis],
             lum_g[..., np.newaxis],
@@ -228,7 +288,8 @@ if __name__ == "__main__":
         ), axis=-1), 0, 1)
         plt.subplot(321)
         plt.title("Left")
-        plt.scatter(l_eye.phi, l_eye.theta, c=L, marker=".", s=np.power(s, p * np.absolute(l_eye.theta) / np.pi))
+        print np.rad2deg(l_eye.yaw_pitch_roll)
+        plt.scatter(l_phi, l_theta, c=L, marker=".", s=np.power(s, p * np.absolute(l_theta) / np.pi))
         plt.ylabel("epsilon (elevation)")
         plt.xlim([-np.pi, np.pi])
         plt.ylim([-np.pi/2, np.pi/2])
@@ -236,9 +297,9 @@ if __name__ == "__main__":
         plt.yticks([-np.pi/2, -np.pi/3, -np.pi/6, 0, np.pi/6, np.pi/3, np.pi/2],
                    ["-90", "-60", "-30", "0", "30", "60", "90"])
 
-        lum_r = r_eye._lum + (1. - r_eye._lum) * .05
-        lum_g = r_eye._lum + (1. - r_eye._lum) * .53
-        lum_b = r_eye._lum + (1. - r_eye._lum) * .79
+        lum_r = norm(r_eye.sky.L) + (1. - norm(r_eye.sky.L)) * .05
+        lum_g = norm(r_eye.sky.L) + (1. - norm(r_eye.sky.L)) * .53
+        lum_b = norm(r_eye.sky.L) + (1. - norm(r_eye.sky.L)) * .79
         L = np.clip(np.concatenate((
             lum_r[..., np.newaxis],
             lum_g[..., np.newaxis],
@@ -246,15 +307,15 @@ if __name__ == "__main__":
         ), axis=-1), 0, 1)
         plt.subplot(322)
         plt.title("Right")
-        plt.scatter(r_eye.phi, r_eye.theta, c=L, marker=".", s=np.power(s, p * np.absolute(l_eye.theta) / np.pi))
+        plt.scatter(r_phi, r_theta, c=L, marker=".", s=np.power(s, p * np.absolute(r_theta) / np.pi))
         plt.xlim([-np.pi, np.pi])
         plt.ylim([-np.pi/2, np.pi/2])
         plt.xticks([-np.pi, -3*np.pi/4, -np.pi/2, -np.pi/4, 0, np.pi/4, np.pi/2, 3*np.pi/4, np.pi], [])
         plt.yticks([-np.pi/2, -np.pi/3, -np.pi/6, 0, np.pi/6, np.pi/3, np.pi/2], [])
 
         plt.subplot(323)
-        plt.scatter(l_eye.phi, l_eye.theta, c=l_eye._dop_filter, cmap="Blues", vmin=0, vmax=1,
-                    marker=".", s=np.power(s, p * np.absolute(l_eye.theta) / np.pi))
+        plt.scatter(l_phi, l_theta, c=l_eye._dop_filter, cmap="Blues", vmin=0, vmax=1,
+                    marker=".", s=np.power(s, p * np.absolute(l_theta) / np.pi))
         plt.ylabel("epsilon (elevation)")
         plt.xlim([-np.pi, np.pi])
         plt.ylim([-np.pi / 2, np.pi / 2])
@@ -263,16 +324,16 @@ if __name__ == "__main__":
                    ["-90", "-60", "-30", "0", "30", "60", "90"])
 
         plt.subplot(324)
-        plt.scatter(r_eye.phi, r_eye.theta, c=r_eye._dop_filter, cmap="Blues", vmin=0, vmax=1,
-                    marker=".", s=np.power(s, p * np.absolute(l_eye.theta) / np.pi))
+        plt.scatter(r_phi, r_theta, c=r_eye._dop_filter, cmap="Blues", vmin=0, vmax=1,
+                    marker=".", s=np.power(s, p * np.absolute(r_theta) / np.pi))
         plt.xlim([-np.pi, np.pi])
         plt.ylim([-np.pi / 2, np.pi / 2])
         plt.xticks([-np.pi, -3 * np.pi / 4, -np.pi / 2, -np.pi / 4, 0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi], [])
         plt.yticks([-np.pi / 2, -np.pi / 3, -np.pi / 6, 0, np.pi / 6, np.pi / 3, np.pi / 2], [])
 
         plt.subplot(325)
-        plt.scatter(l_eye.phi, l_eye.theta, c=l_eye._aop_filter % np.pi, cmap="hsv", vmin=0, vmax=np.pi,
-                    marker=".", s=np.power(s, p * np.absolute(l_eye.theta) / np.pi))
+        plt.scatter(l_phi, l_theta, c=l_eye._aop_filter % np.pi, cmap="hsv", vmin=0, vmax=np.pi,
+                    marker=".", s=np.power(s, p * np.absolute(l_theta) / np.pi))
         plt.xlabel("alpha (azimuth)")
         plt.ylabel("epsilon (elevation)")
         plt.xlim([-np.pi, np.pi])
@@ -283,8 +344,8 @@ if __name__ == "__main__":
                    ["-90", "-60", "-30", "0", "30", "60", "90"])
 
         plt.subplot(326)
-        plt.scatter(r_eye.phi, r_eye.theta, c=r_eye._aop_filter % np.pi, cmap="hsv", vmin=0, vmax=np.pi,
-                    marker=".", s=np.power(s, p * np.absolute(l_eye.theta) / np.pi))
+        plt.scatter(r_phi, r_theta, c=r_eye._aop_filter % np.pi, cmap="hsv", vmin=0, vmax=np.pi,
+                    marker=".", s=np.power(s, p * np.absolute(r_theta) / np.pi))
         plt.xlabel("alpha (azimuth)")
         plt.xlim([-np.pi, np.pi])
         plt.ylim([-np.pi / 2, np.pi / 2])
@@ -297,7 +358,7 @@ if __name__ == "__main__":
 
         plt.subplot(321)
         plt.title("Left")
-        plt.scatter(l_eye.phi, l_eye.theta, c=l_eye.L, marker=".", s=np.power(s, p * np.absolute(l_eye.theta) / np.pi))
+        plt.scatter(l_phi, l_theta, c=l_eye.L, marker=".", s=np.power(s, p * np.absolute(l_theta) / np.pi))
         plt.ylabel("epsilon (elevation)")
         plt.xlim([-np.pi, np.pi])
         plt.ylim([-np.pi/2, np.pi/2])
@@ -307,15 +368,15 @@ if __name__ == "__main__":
 
         plt.subplot(322)
         plt.title("Right")
-        plt.scatter(r_eye.phi, r_eye.theta, c=r_eye.L, marker=".", s=np.power(s, p * np.absolute(l_eye.theta) / np.pi))
+        plt.scatter(r_phi, r_theta, c=r_eye.L, marker=".", s=np.power(s, p * np.absolute(r_theta) / np.pi))
         plt.xlim([-np.pi, np.pi])
         plt.ylim([-np.pi/2, np.pi/2])
         plt.xticks([-np.pi, -3*np.pi/4, -np.pi/2, -np.pi/4, 0, np.pi/4, np.pi/2, 3*np.pi/4, np.pi], [])
         plt.yticks([-np.pi/2, -np.pi/3, -np.pi/6, 0, np.pi/6, np.pi/3, np.pi/2], [])
 
         plt.subplot(323)
-        plt.scatter(l_eye.phi, l_eye.theta, c=l_eye.DOP, cmap="Blues", vmin=0, vmax=1,
-                    marker=".", s=np.power(s, p * np.absolute(l_eye.theta) / np.pi))
+        plt.scatter(l_phi, l_theta, c=l_eye.DOP, cmap="Blues", vmin=0, vmax=1,
+                    marker=".", s=np.power(s, p * np.absolute(l_theta) / np.pi))
         plt.ylabel("epsilon (elevation)")
         plt.xlim([-np.pi, np.pi])
         plt.ylim([-np.pi / 2, np.pi / 2])
@@ -324,16 +385,16 @@ if __name__ == "__main__":
                    ["-90", "-60", "-30", "0", "30", "60", "90"])
 
         plt.subplot(324)
-        plt.scatter(r_eye.phi, r_eye.theta, c=r_eye.DOP, cmap="Blues", vmin=0, vmax=1,
-                    marker=".", s=np.power(s, p * np.absolute(l_eye.theta) / np.pi))
+        plt.scatter(r_phi, r_theta, c=r_eye.DOP, cmap="Blues", vmin=0, vmax=1,
+                    marker=".", s=np.power(s, p * np.absolute(r_theta) / np.pi))
         plt.xlim([-np.pi, np.pi])
         plt.ylim([-np.pi / 2, np.pi / 2])
         plt.xticks([-np.pi, -3 * np.pi / 4, -np.pi / 2, -np.pi / 4, 0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi], [])
         plt.yticks([-np.pi / 2, -np.pi / 3, -np.pi / 6, 0, np.pi / 6, np.pi / 3, np.pi / 2], [])
 
         plt.subplot(325)
-        plt.scatter(l_eye.phi, l_eye.theta, c=l_eye.AOP, cmap="hsv", vmin=0, vmax=np.pi,
-                    marker=".", s=np.power(s, p * np.absolute(l_eye.theta) / np.pi))
+        plt.scatter(l_phi, l_theta, c=l_eye.AOP, cmap="hsv", vmin=0, vmax=np.pi,
+                    marker=".", s=np.power(s, p * np.absolute(l_theta) / np.pi))
         plt.xlabel("alpha (azimuth)")
         plt.ylabel("epsilon (elevation)")
         plt.xlim([-np.pi, np.pi])
@@ -344,8 +405,8 @@ if __name__ == "__main__":
                    ["-90", "-60", "-30", "0", "30", "60", "90"])
 
         plt.subplot(326)
-        plt.scatter(r_eye.phi, r_eye.theta, c=r_eye.AOP, cmap="hsv", vmin=0, vmax=np.pi,
-                    marker=".", s=np.power(s, p * np.absolute(l_eye.theta) / np.pi))
+        plt.scatter(r_phi, r_theta, c=r_eye.AOP, cmap="hsv", vmin=0, vmax=np.pi,
+                    marker=".", s=np.power(s, p * np.absolute(r_theta) / np.pi))
         plt.xlabel("alpha (azimuth)")
         plt.xlim([-np.pi, np.pi])
         plt.ylim([-np.pi / 2, np.pi / 2])

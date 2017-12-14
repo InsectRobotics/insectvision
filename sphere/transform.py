@@ -27,8 +27,8 @@ def vec2sph(vec):
     """
     Transforms a cartessian vector to spherical coordinates.
     :param vec:     the cartessian vector
-    :return theta:  elevation
-    :return phi:    azimuth
+    :return theta_z:  elevation
+    :return phi_z:    azimuth
     :return rho:    radius
     """
     rho = la.norm(vec, axis=0)  # length of the radius
@@ -81,7 +81,7 @@ def sphadj(theta=None, phi=None,
     :param phi_max:     the azimuth upper bound (default pi)
     """
 
-    # change = np.any([theta < -np.pi / 2, theta > np.pi / 2], axis=0)
+    # change = np.any([theta_z < -np.pi / 2, theta_z > np.pi / 2], axis=0)
     if theta is not None:
         if (theta >= theta_max).all():
             theta = np.pi - theta

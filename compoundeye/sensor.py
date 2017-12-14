@@ -59,6 +59,8 @@ class CompassSensor(CompoundEye):
             fit = False
         if not fit or nb_lenses > 100:
             thetas, phis = fibonacci_sphere(nb_lenses, np.rad2deg(fov))
+        thetas = (3 * np.pi/2 - thetas) % (2 * np.pi) - np.pi
+        phis = (2 * np.pi - phis) % (2 * np.pi) - np.pi
 
         super(CompassSensor, self).__init__(
             ommatidia=np.array([thetas.flatten(), phis.flatten()]).T,
@@ -111,8 +113,7 @@ class CompassSensor(CompoundEye):
                 x = self.__x_last
         return x
 
-    def set_sky(self, sky):
-        super(CompassSensor, self).set_sky(sky)
+    def refresh(self):
         if not np.all(self.__x_new == 0.):
             self.__x_last = self.__x_new
         self.__x_new = super(CompassSensor, self).L.flatten()
@@ -130,16 +131,16 @@ class CompassSensor(CompoundEye):
             sky_model = x  # type: ChromaticitySkyModel
             x = np.empty((0, self.L.size), dtype=np.float32)
             t = np.empty((0, NB_EN), dtype=np.float32)
-            r = self.facing_direction
+            r = self.yaw_pitch_roll[0]
             for j in xrange(180):
                 self.rotate(np.deg2rad(2))
-                self.set_sky(sky_model)
-                lon = (sky_model.lon + self.facing_direction) % (2 * np.pi)
+                self.sky = sky_model
+                lon = (sky_model.lon + self.yaw_pitch_roll[0]) % (2 * np.pi)
                 lat = sky_model.lat
                 x = np.vstack([x, self.L.flatten()])
                 t = np.vstack([t, encode_sun(lon, lat)])
-            self.facing_direction = r
-            self.set_sky(sky_model)
+            self.yaw_pitch_roll[0] = r
+            self.sky = sky_model
 
         # self.w = (1. - self.learning_rate) * self.w + self.learning_rate * la.pinv(x).dot(t)
         self.w_whitening = pca_kernel(x)
@@ -153,7 +154,7 @@ class CompassSensor(CompoundEye):
         if isinstance(args[0], np.ndarray):
             self._lum = args[0]  # type: np.ndarray
         elif isinstance(args[0], SkyModel):
-            self.set_sky(args[0])
+            self.sky = args[0]
         else:
             raise AttributeError("Unknown attribute type: %s" % type(args[0]))
         decode = False
@@ -199,7 +200,7 @@ class CompassSensor(CompoundEye):
         import matplotlib.pyplot as plt
         from matplotlib.patches import Ellipse, Rectangle
 
-        xyz = sph2vec(np.pi/2 - sensor.theta, sensor.phi, sensor.R_c)
+        xyz = sph2vec(sensor.theta_local, sensor.phi_local, sensor.R_c)
 
         plt.figure("Sensor Design", figsize=(10, 10))
 
@@ -220,7 +221,7 @@ class CompassSensor(CompoundEye):
         sensor_outline.set_alpha(.5)
         sensor_outline.set_facecolor("grey")
 
-        stheta, sphi, sL = sensor.theta, sensor.phi, sensor.L
+        stheta, sphi, sL = np.pi/2 - sensor.theta_local, sensor.phi_local, sensor.L
         if sensor.mode == "event":
             sL = np.clip(1. * sL + .5, 0., 1.)
         for (x, y, z), th, ph, L in zip(xyz.T, stheta, sphi, sL):
@@ -368,30 +369,70 @@ def decode_sun(x):
     return lon, lat
 
 
+if __name__ == "__main__1__":
+    import matplotlib.pyplot as plt
+    from sky import get_seville_observer
+    from datetime import datetime
+
+    s, p = 20, 4
+    # modes: "normal", "cross", "event"
+    sensor = CompassSensor(nb_lenses=1000, fov=np.deg2rad(90), mode="normal")
+    # s.load_weights()
+
+    # default observer is in Seville (where the data come from)
+    observer = get_seville_observer()
+    observer.date = datetime(2018, 6, 21, 10, 0, 0)
+
+    sensor.sky.obs = observer
+    for angle in np.linspace(0, np.pi/2, 9):
+        plt.figure("Sensor - values", figsize=(8, 21))
+        sensor.rotate(pitch=np.pi / 18)
+        sensor.refresh()
+
+        lum_r = sensor.L * .05
+        lum_g = sensor.L * .53
+        lum_b = sensor.L * .79
+        L = np.clip(np.concatenate((
+            lum_r[..., np.newaxis],
+            lum_g[..., np.newaxis],
+            lum_b[..., np.newaxis]
+        ), axis=-1), 0, 1)
+        print np.rad2deg(sensor.yaw_pitch_roll)
+        plt.scatter(sensor.phi_local, sensor.theta_local,
+                    c=L, marker=".", s=np.power(s, p * np.absolute(sensor.theta_local) / np.pi))
+        plt.ylabel("epsilon (elevation)")
+        plt.xlim([-np.pi, np.pi])
+        plt.ylim([-np.pi / 2, np.pi / 2])
+        plt.xticks([-np.pi, -3 * np.pi / 4, -np.pi / 2, -np.pi / 4, 0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi], [])
+        plt.yticks([-np.pi / 2, -np.pi / 3, -np.pi / 6, 0, np.pi / 6, np.pi / 3, np.pi / 2],
+                   ["-90", "-60", "-30", "0", "30", "60", "90"])
+
+        plt.show()
+
+
 if __name__ == "__main__":
     from sky import get_seville_observer
     from datetime import datetime
 
     # modes: "normal", "cross", "event"
-    s = CompassSensor(nb_lenses=100, fov=np.deg2rad(60), mode="normal")
+    s = CompassSensor(nb_lenses=1000, fov=np.deg2rad(60), mode="normal")
     # s.load_weights()
 
     # default observer is in Seville (where the data come from)
     observer = get_seville_observer()
-    observer.date = datetime.now()
+    observer.date = datetime(2018, 6, 21, 10, 0, 0)
 
-    # create and generate a sky instance
-    sky = SkyModel(observer=observer, nside=1)
-    sky.generate()
-
-    # lon, lat = sky.lon, sky.lat
-    # print "Reality: Lon = %.2f, Lat = %.2f" % (np.rad2deg(lon), np.rad2deg(lat))
-    # lon, lat = s.update_parameters(sky)
-    # print "Prediction: Lon = %.2f, Lat = %.2f" % (np.rad2deg(lon), np.rad2deg(lat))
-    s.set_sky(sky)
-    # s.rotate(np.deg2rad(90))
-    # s.set_sky(sky)
-    CompassSensor.visualise(s)
+    s.sky.obs = observer
+    for angle in np.linspace(0, np.pi/2, 9):
+        s.rotate(yaw=np.pi/6, roll=np.pi / 18)
+        s.refresh()
+        # lon, lat = sky.lon, sky.lat
+        # print "Reality: Lon = %.2f, Lat = %.2f" % (np.rad2deg(lon), np.rad2deg(lat))
+        # lon, lat = s.update_parameters(sky)
+        # print "Prediction: Lon = %.2f, Lat = %.2f" % (np.rad2deg(lon), np.rad2deg(lat))
+        # s.rotate(np.deg2rad(90))
+        # s.set_sky(sky)
+        CompassSensor.visualise(s)
 
 
 if __name__ == "__main__2__":
@@ -408,10 +449,10 @@ if __name__ == "__main__2__":
     observer.date = datetime.now()
 
     # create and generate a sky instance
-    sky = ChromaticitySkyModel(observer=observer, nside=1)
+    sky = SkyModel(observer=observer, nside=1)
     sky.generate()
 
-    s.set_sky(sky)
+    s.sky = sky
     p[i] = s.L
     # p[i] = s.DOP
     # p[i] = np.rad2deg(s.AOP)
