@@ -11,8 +11,8 @@ __datadir__ = __dir__ + "../data/datasets/"
 if __name__ == "__main__":
 
     # parameters
-    nb_lenses = 60
-    fov = 60
+    nb_lenses = 368
+    fov = 180
     observer = get_seville_observer()
     nb_months = 7
     start_month = 6
@@ -31,38 +31,37 @@ if __name__ == "__main__":
     months = (np.arange(start_month-1, start_month + nb_months - 1, 1) % 12) + 1
     for month in months:
         observer.date = datetime(year=2017, month=month, day=start_day, hour=0, minute=0, second=0)
-        sky = SkyModel(observer=observer)
-        rising = observer.next_rising(sky.sun).datetime() + timedelta(hours=1)
-        setting = observer.next_setting(sky.sun).datetime() - timedelta(hours=1)
+        sensor.sky.obs = observer
+        rising = observer.next_rising(sensor.sky.sun).datetime() + timedelta(hours=1)
+        setting = observer.next_setting(sensor.sky.sun).datetime() - timedelta(hours=1)
 
-        observer.date = rising
-        while observer.date.datetime() < setting:
-            sensor.sky = SkyModel(observer=observer)
+        sensor.sky.obs.date = rising
+        while sensor.sky.obs.date.datetime() < setting:
+            sensor.sky.generate()
 
-            for k in xrange(9):
-                for j in xrange(9):
-                    print "Date:", observer.date,
-                    print "Roll:", np.rad2deg(sensor.yaw_pitch_roll[2]),
-                    print "Pitch:", np.rad2deg(sensor.yaw_pitch_roll[1]),
-                    for i in xrange(360):
-                        lon = (sky.lon + sensor.yaw_pitch_roll[0]) % (2 * np.pi)
-                        lat = sky.lat
+            print "Date:", sensor.sky.obs.date,
+            for i in xrange(360):
+                sensor.refresh()
+                # lon, lat, _ = CompassSensor.rotate_centre(
+                #     np.array([sensor.sky.lon, sensor.sky.lat, 0]),
+                #     yaw=sensor.yaw,
+                #     pitch=sensor.pitch,
+                #     roll=sensor.roll
+                # )
+                lat = sensor.sky.lat
+                lon = (sensor.sky.lon - sensor.yaw + np.pi) % (2 * np.pi) - np.pi
+                x = np.vstack([x, sensor.L])
+                t = np.vstack([t, encode_sun(lon, lat)])
+                m = np.vstack([m, sensor.sky.obs.date.datetime()])
+                if i % 10 == 0:
+                    print '.',
+                    # print '  ' * (j+1) ** 2,
+                sensor.rotate(yaw=np.deg2rad(1))
+            sensor.refresh()
+            print " ", x.shape, t.shape
+            # sensor.rotate(yaw=-sensor.yaw)
 
-                        x = np.vstack([x, sensor.L.flatten()])
-                        t = np.vstack([t, encode_sun(lon, lat)])
-                        m = np.vstack([m, observer.date.datetime()])
-                        if i % 10 == 0:
-                            print '.',
-                            # print '  ' * (j+1) ** 2,
-                        sensor.rotate(yaw=np.deg2rad(1))
-                    print " ", x.shape, t.shape
-                    sensor.rotate(yaw=-sensor.yaw_pitch_roll[0])
-                    sensor.rotate(pitch=np.deg2rad(10))
-                sensor.rotate(pitch=-sensor.yaw_pitch_roll[1])
-                sensor.rotate(roll=np.deg2rad(10))
-            sensor.rotate(roll=-sensor.yaw_pitch_roll[2])
-
-            observer.date = observer.date.datetime() + delta
+            sensor.sky.obs.date = sensor.sky.obs.date.datetime() + delta
 
     np.savez_compressed(__datadir__ + "%s.npz" % name, x=x, t=t)
     np.savez_compressed(__datadir__ + "M%02d-D%04d.npz" % (nb_months, delta.seconds), m=m)

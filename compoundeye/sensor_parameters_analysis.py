@@ -56,7 +56,7 @@ if __name__ == "__main__":
     plt.title("Number of Lenses (FOV = 60 degrees)")
     plt.xticks(nb_lenses, nb_lenses)
     plt.xlim([0, 850])
-    plt.ylim([0, 45])
+    plt.ylim([0, 35])
     plt.ylabel("MSE (degrees)")
     plt.xlabel("Number of Lenses")
 
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     plt.title("Field of View (similar density)")
     plt.xticks(fovs_)
     plt.xlim([0, 180])
-    plt.ylim([0, 45])
+    plt.ylim([0, 35])
     plt.xlabel("Field of View (degrees)")
 
     plt.show()

@@ -5,7 +5,7 @@ import numpy as np
 import numpy.linalg as la
 
 from geometry import fibonacci_sphere, angles_distribution, LENS_RADIUS, A_lens
-from learn.whitening import pca as pca_kernel
+from learn.whitening import zca
 from model import CompoundEye
 from sky import SkyModel
 from code.compass import encode_sph, decode_sph
@@ -20,7 +20,7 @@ DEBUG = False
 
 class CompassSensor(CompoundEye):
 
-    def __init__(self, nb_lenses=20, fov=np.deg2rad(60), mode="normal"):
+    def __init__(self, nb_lenses=20, fov=np.deg2rad(60), kernel=zca, mode="normal"):
 
         self.nb_lenses = nb_lenses
         self.fov = fov
@@ -35,6 +35,7 @@ class CompassSensor(CompoundEye):
         self.alpha = self.R_c * np.sin(fov / 2)
         self.height = self.R_c * (1. - np.cos(fov / 2))
         self.learning_rate = 0.1
+        self.kernel = kernel
 
         assert mode in ["normal", "cross", "event"],\
             "Mode has to be one of 'normal', 'cross' or 'event'."
@@ -100,9 +101,13 @@ class CompassSensor(CompoundEye):
         else:
             x = self.__x_new
 
+        x[np.isnan(x)] = 0.
         x_max = x.max()
         x_min = x.min()
-        x = (x - x_min) / (x_max - x_min)
+        if (x_max - x_min) > 0:
+            x = (x - x_min) / (x_max - x_min)
+        else:
+            x -= x_min
         if self.mode == "event":
             if not np.all(np.isnan(self.__x_last)):
                 x_last_max = self.__x_last.max()
@@ -127,24 +132,26 @@ class CompassSensor(CompoundEye):
         :type t: np.ndarray
         :return:
         """
-        if isinstance(x, ChromaticitySkyModel):
-            sky_model = x  # type: ChromaticitySkyModel
+        if isinstance(x, SkyModel):
+            sky_model = x  # type: SkyModel
             x = np.empty((0, self.L.size), dtype=np.float32)
             t = np.empty((0, NB_EN), dtype=np.float32)
-            r = self.yaw_pitch_roll[0]
+            r = self.yaw
             for j in xrange(180):
                 self.rotate(np.deg2rad(2))
                 self.sky = sky_model
-                lon = (sky_model.lon + self.yaw_pitch_roll[0]) % (2 * np.pi)
+                lon = (sky_model.lon + self.yaw) % (2 * np.pi)
                 lat = sky_model.lat
                 x = np.vstack([x, self.L.flatten()])
                 t = np.vstack([t, encode_sun(lon, lat)])
-            self.yaw_pitch_roll[0] = r
+            self.yaw = r
             self.sky = sky_model
 
         # self.w = (1. - self.learning_rate) * self.w + self.learning_rate * la.pinv(x).dot(t)
-        self.w_whitening = pca_kernel(x)
+        x[np.isnan(x)] = 0.
         self.m = x.mean(axis=0)
+        if self.kernel is not None:
+            self.w_whitening = self.kernel(x)
         if t is not None:
             self.w = la.pinv(self._pprop(x), 1e-01).dot(t)
 
@@ -165,6 +172,7 @@ class CompassSensor(CompoundEye):
         return self._fprop(self.L, decode=decode).flatten()
 
     def _pprop(self, x):
+        # return x
         return (x.reshape((-1, self.nb_lenses)) - self.m).dot(self.w_whitening)
 
     def _fprop(self, x, decode=True):
@@ -190,7 +198,7 @@ class CompassSensor(CompoundEye):
         self.w_whitening = weights["w_whitening"]
 
     @classmethod
-    def visualise(cls, sensor):
+    def visualise(cls, sensor, interactive=False):
         """
 
         :param sensor:
@@ -199,6 +207,8 @@ class CompassSensor(CompoundEye):
         """
         import matplotlib.pyplot as plt
         from matplotlib.patches import Ellipse, Rectangle
+        if interactive:
+            plt.ion()
 
         xyz = sph2vec(sensor.theta_local, sensor.phi_local, sensor.R_c)
 
@@ -357,7 +367,11 @@ class CompassSensor(CompoundEye):
 
         plt.tight_layout(pad=0.)
 
-        plt.show()
+        if interactive:
+            plt.draw()
+            plt.pause(.1)
+        else:
+            plt.show()
 
 
 def encode_sun(lon, lat):
@@ -415,7 +429,7 @@ if __name__ == "__main__":
     from datetime import datetime
 
     # modes: "normal", "cross", "event"
-    s = CompassSensor(nb_lenses=1000, fov=np.deg2rad(60), mode="normal")
+    s = CompassSensor(nb_lenses=60, fov=np.deg2rad(60), mode="normal")
     # s.load_weights()
 
     # default observer is in Seville (where the data come from)
@@ -423,8 +437,7 @@ if __name__ == "__main__":
     observer.date = datetime(2018, 6, 21, 10, 0, 0)
 
     s.sky.obs = observer
-    for angle in np.linspace(0, np.pi/2, 9):
-        s.rotate(yaw=np.pi/6, roll=np.pi / 18)
+    for angle in np.linspace(0, 3 * np.pi, 9, endpoint=False):
         s.refresh()
         # lon, lat = sky.lon, sky.lat
         # print "Reality: Lon = %.2f, Lat = %.2f" % (np.rad2deg(lon), np.rad2deg(lat))
@@ -432,7 +445,8 @@ if __name__ == "__main__":
         # print "Prediction: Lon = %.2f, Lat = %.2f" % (np.rad2deg(lon), np.rad2deg(lat))
         # s.rotate(np.deg2rad(90))
         # s.set_sky(sky)
-        CompassSensor.visualise(s)
+        CompassSensor.visualise(s, interactive=True)
+        s.rotate(yaw=np.pi/3)
 
 
 if __name__ == "__main__2__":

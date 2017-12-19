@@ -55,6 +55,8 @@ class CompoundEye(object):
 
     @sky.setter
     def sky(self, value):
+        value.theta_z = self.theta_global
+        value.phi_z = self.phi_local
         self._sky = value
 
     @property
@@ -87,7 +89,7 @@ class CompoundEye(object):
 
     @property
     def theta_global(self):
-        return (np.pi/2 - self.sky.theta_z + np.pi) % (2 * np.pi) - np.pi  # type: np.ndarray
+        return (self.sky.theta_z + np.pi) % (2 * np.pi) - np.pi  # type: np.ndarray
 
     @theta_global.setter
     def theta_global(self, value):
@@ -96,44 +98,74 @@ class CompoundEye(object):
         :type value: np.ndarray
         :return:
         """
-        self.sky.theta_z = (np.pi/2 - value + np.pi) % (2 * np.pi) - np.pi
+        self.sky.theta_z = (value + np.pi) % (2 * np.pi) - np.pi
 
     @property
     def phi_global(self):
-        return (2 * np.pi - self.sky.phi_z + self.yaw_pitch_roll[0]) % (2 * np.pi) - np.pi
+        return (self.sky.phi_z + np.pi) % (2 * np.pi) - np.pi
 
     @phi_global.setter
     def phi_global(self, value):
-        self.sky.phi_z = (2 * np.pi - value + self.yaw_pitch_roll[0]) % (2 * np.pi) - np.pi
+        self.sky.phi_z = (value + np.pi) % (2 * np.pi) - np.pi
 
     @property
     def theta_local(self):
-        theta_z, phi_z = SkyModel.rotate(self.sky.theta_z, self.sky.phi_z, yaw=-self.yaw_pitch_roll[0])
-        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, pitch=-self.yaw_pitch_roll[1])
-        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, roll=-self.yaw_pitch_roll[2])
-        return (np.pi / 2 - theta_z + np.pi) % (2 * np.pi) - np.pi
+        theta_z, phi_z = SkyModel.rotate(self.theta_global, self.phi_global, yaw=-self.yaw)
+        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, pitch=-self.pitch)
+        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, roll=-self.roll)
+        return (theta_z + np.pi) % (2 * np.pi) - np.pi
 
     @property
     def phi_local(self):
-        theta_z, phi_z = SkyModel.rotate(self.sky.theta_z, self.sky.phi_z, yaw=-self.yaw_pitch_roll[0])
-        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, pitch=-self.yaw_pitch_roll[1])
-        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, roll=-self.yaw_pitch_roll[2])
-        return (2 * np.pi - phi_z) % (2 * np.pi) - np.pi
+        theta_z, phi_z = SkyModel.rotate(self.theta_global, self.phi_global, yaw=-self.yaw)
+        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, pitch=-self.pitch)
+        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, roll=-self.roll)
+        return (np.pi + phi_z) % (2 * np.pi) - np.pi
+
+    @property
+    def yaw(self):
+        return self.yaw_pitch_roll[0]
+
+    @yaw.setter
+    def yaw(self, value):
+        self.yaw_pitch_roll[0] = value
+
+    @property
+    def pitch(self):
+        return self.yaw_pitch_roll[1]
+
+    @pitch.setter
+    def pitch(self, value):
+        self.yaw_pitch_roll[1] = value
+
+    @property
+    def roll(self):
+        return self.yaw_pitch_roll[2]
+
+    @roll.setter
+    def roll(self, value):
+        self.yaw_pitch_roll[2] = value
 
     def rotate(self, yaw=0., pitch=0., roll=0.):
+        sky = self.sky
+
         # rotate back to the default orientation
-        sky = SkyModel.rotate_sky(self.sky, yaw=-self.yaw_pitch_roll[0])
-        sky = SkyModel.rotate_sky(sky, pitch=-self.yaw_pitch_roll[1])
-        sky = SkyModel.rotate_sky(sky, roll=-self.yaw_pitch_roll[2])
+        sky = SkyModel.rotate_sky(sky, yaw=-self.yaw)
+        sky = SkyModel.rotate_sky(sky, pitch=-self.pitch)
+        sky = SkyModel.rotate_sky(sky, roll=-self.roll)
 
         # update the facing direction of the eye
-        self.yaw_pitch_roll = self.rotate_centre(self.yaw_pitch_roll, yaw=yaw, pitch=pitch, roll=roll)
+        self.yaw_pitch_roll = self.rotate_centre(
+            self.yaw_pitch_roll, yaw=yaw, pitch=pitch, roll=roll
+        )
 
         # rotate the sky according to the new facing direction
-        self.sky = SkyModel.rotate_sky(sky,
-                                       yaw=self.yaw_pitch_roll[0],
-                                       pitch=self.yaw_pitch_roll[1],
-                                       roll=self.yaw_pitch_roll[2])
+        sky = SkyModel.rotate_sky(
+            sky, yaw=self.yaw, pitch=self.pitch, roll=self.roll
+        )
+
+        self.sky.theta_z = sky.theta_z
+        self.sky.phi_z = sky.phi_z
 
     def _update_filters(self):
 
@@ -154,6 +186,7 @@ class CompoundEye(object):
 
     @staticmethod
     def rotate_centre(centre, yaw=0., pitch=0., roll=0.):
+        # centre[[1, 0]] = SkyModel.rotate(centre[1], centre[0], yaw=yaw, pitch=pitch, roll=roll)
         centre[[1, 0]] = SkyModel.rotate(np.pi / 2 - centre[1], np.pi - centre[0], yaw=yaw, pitch=pitch)
 
         centre[0] = (2 * np.pi - centre[0]) % (2 * np.pi) - np.pi

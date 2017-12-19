@@ -9,14 +9,15 @@ def encode_sph(theta, phi=None, length=8):
             theta = theta[0]
         else:
             phi = theta
-            theta = 1.
+            theta = np.pi / 2
+    theta = np.absolute(theta)
     alpha = np.linspace(0, 2 * np.pi, length, endpoint=False)
     return np.sin(alpha + phi + np.pi / 2) * theta / (length / 2.)
 
 
 def decode_sph(I):
     fund_freq = np.fft.fft(I)[1]
-    phi = -np.angle(np.conj(fund_freq))
+    phi = (np.pi - np.angle(np.conj(fund_freq))) % (2 * np.pi) + np.pi
     theta = np.absolute(fund_freq)
     return np.array([theta, phi])
 

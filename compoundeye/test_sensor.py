@@ -3,48 +3,56 @@ from sensor import CompassSensor, NB_EN, decode_sun
 from learn import get_loss
 from sky import get_seville_observer, SkyModel
 from datetime import datetime, timedelta
+from learn.whitening import pca, zca
 import os
 
 
 __dir__ = os.path.dirname(os.path.realpath(__file__)) + "/"
 __datadir__ = __dir__ + "../data/datasets/"
 mse = get_loss("ad3")
+std = get_loss("astd3")
 
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     # parameters
-    nb_lenses = 60
-    fov = 60
+    nb_lenses = 368
+    fov = 180
+    kernel = zca
     observer = get_seville_observer()
     nb_months = 7
     start_month = 6
     start_day = 21
     delta = timedelta(hours=1)
-    mode = "monthly"
-    # mode = "hourly"
+    # mode = "monthly"
+    mode = "hourly"
     # mode = 6
 
     name = "seville-F%03d-I%03d-O%03d-M%02d-D%04d" % (fov, nb_lenses, NB_EN, nb_months, delta.seconds)
     data = np.load(__datadir__ + "%s.npz" % name)
     dates = np.load(__datadir__ + "M%02d-D%04d.npz" % (nb_months, delta.seconds))['m']
 
-    s = CompassSensor(nb_lenses=nb_lenses, fov=np.deg2rad(fov))
+    s = CompassSensor(nb_lenses=nb_lenses, fov=np.deg2rad(fov), kernel=kernel)
 
     # create and generate a sky instance
     observer.date = datetime.now()
-    sky = SkyModel(observer=observer, nside=1)
-    sky.generate()
+    s.sky.obs = observer
+    s.sky.generate()
 
     x, t = data['x'], data['t']
+    # x[np.isnan(x)] = 0.
     t = np.array([decode_sun(t0) for t0 in t])
-    y = s.update_parameters(x=data['x'], t=data['t'])
+    y = s.update_parameters(x=x, t=data['t'])
     s.save_weights()
 
     print "MSE:", mse(y, t)
     print "MSE-longitude:", mse(y, t, theta=False)
     print "MSE-latitude:", mse(y, t, phi=False)
+
+    print "STD:", std(y, t)
+    print "STD-longitude:", std(y, t, theta=False)
+    print "STD-latitude:", std(y, t, phi=False)
 
     S = 360
     step = 10
@@ -87,6 +95,8 @@ if __name__ == "__main__":
                 plt.title("%d:00" % dates[i][j*S][0].hour)
     elif isinstance(mode, basestring) and mode == "hourly":
         plt.figure("hourly-binned-mse", figsize=(15, 5))
+        ylim = 20
+
         mse_x, mse_y, mse_y_lon, mse_y_lat = [], [], [], []
         for h in xrange(24):
             i = np.array([True if date[0].month == 6 and date[0].hour == h else False for ii, date in enumerate(dates)])
@@ -102,7 +112,7 @@ if __name__ == "__main__":
         plt.plot(mse_x, mse_y_lat, label="MSE-lat")
         plt.legend()
         plt.xlim([5, 19])
-        plt.ylim([0, 22])
+        plt.ylim([0, ylim])
         plt.xlabel("Time (hour)")
         plt.ylabel("MSE")
         plt.title("June")
@@ -122,7 +132,7 @@ if __name__ == "__main__":
         plt.plot(mse_x, mse_y_lat, label="MSE-lat")
         plt.legend()
         plt.xlim([5, 19])
-        plt.ylim([0, 22])
+        plt.ylim([0, ylim])
         plt.xlabel("Time (hour)")
         plt.ylabel("MSE")
         plt.title("September")
@@ -142,17 +152,17 @@ if __name__ == "__main__":
         plt.plot(mse_x, mse_y_lat, label="MSE-lat")
         plt.legend()
         plt.xlim([5, 19])
-        plt.ylim([0, 22])
+        plt.ylim([0, ylim])
         plt.xlabel("Time (hour)")
         plt.ylabel("MSE")
         plt.title("December")
     plt.show()
 
-    lon, lat = sky.lon, sky.lat
+    s.rotate(-s.yaw, -s.pitch, -s.roll)
+    lon, lat = (s.sky.lon + np.pi) % (2 * np.pi) - np.pi, (s.sky.lat + np.pi) % (2 * np.pi) - np.pi
     print "Reality: Lon = %.2f, Lat = %.2f" % (np.rad2deg(lon), np.rad2deg(lat))
-    s.update_parameters(x=data['x'], t=data['t'])[0]
-    s.facing_direction = 0
-    lon, lat = s(sky)
+    lon, lat = s(s.sky, decode=True)
+    lon, lat = (lon + np.pi) % (2 * np.pi) - np.pi, (lat + np.pi) % (2 * np.pi) - np.pi
     print "Prediction: Lon = %.2f, Lat = %.2f" % (np.rad2deg(lon), np.rad2deg(lat))
     # CompassSensor.visualise(s)
 
