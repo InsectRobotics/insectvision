@@ -159,17 +159,17 @@ class CompassSensor(CompoundEye):
 
     def __call__(self, *args, **kwargs):
         if isinstance(args[0], np.ndarray):
-            self._lum = args[0]  # type: np.ndarray
+            x = args[0]  # type: np.ndarray
         elif isinstance(args[0], SkyModel):
             self.sky = args[0]
+            self.refresh()
+            x = self.L
         else:
             raise AttributeError("Unknown attribute type: %s" % type(args[0]))
-        decode = False
-        if 'decode' in kwargs.keys():
-            decode = kwargs['decode']
-        elif len(args) > 1:
+        decode = kwargs.get('decode', False)
+        if len(args) > 1:
             decode = args[1]  # type: bool
-        return self._fprop(self.L, decode=decode).flatten()
+        return self._fprop(x, decode=decode).flatten()
 
     def _pprop(self, x):
         # return x

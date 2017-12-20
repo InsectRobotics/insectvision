@@ -17,16 +17,16 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     # parameters
-    nb_lenses = 368
-    fov = 180
+    nb_lenses = 60
+    fov = 60
     kernel = zca
     observer = get_seville_observer()
     nb_months = 7
     start_month = 6
     start_day = 21
     delta = timedelta(hours=1)
-    # mode = "monthly"
-    mode = "hourly"
+    mode = "monthly"
+    # mode = "hourly"
     # mode = 6
 
     name = "seville-F%03d-I%03d-O%03d-M%02d-D%04d" % (fov, nb_lenses, NB_EN, nb_months, delta.seconds)

@@ -55,8 +55,9 @@ class CompoundEye(object):
 
     @sky.setter
     def sky(self, value):
-        value.theta_z = self.theta_global
-        value.phi_z = self.phi_local
+        value = value.copy()
+        value.theta_z = self.sky.theta_z
+        value.phi_z = self.sky.phi_z
         self._sky = value
 
     @property
