@@ -9,8 +9,8 @@ import os
 MSE = get_loss("ad3")
 __dir__ = os.path.dirname(os.path.realpath(__file__)) + "/"
 __datadir__ = __dir__ + "../data/datasets/"
-nb_lenses = [4, 12, 60, 100, 220, 840]
-fovs = [(14, 4), (29, 12), (60, 60), (90, 112), (119, 176), (150, 272), (180, 368)]
+nb_lenses = [4, 12, 60, 112, 176, 368, 840]
+fovs = [(14, 4), (30, 12), (60, 60), (90, 112), (120, 176), (150, 272), (180, 368)]
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
@@ -21,18 +21,20 @@ if __name__ == "__main__":
     start_month = 6
     start_day = 21
     delta = timedelta(hours=1)
-    # mode = "monthly"
-
-    plt.figure("MSE", figsize=(15, 10))
+    mode = "normal"
     fov_deg = 60
     fov = np.deg2rad(fov_deg)
+    generate_weights = True
+
+    plt.figure("MSE", figsize=(15, 10))
     mse, mse_lon, mse_lat = [], [], []
     for nb_lens in nb_lenses:
-        name = "seville-F%03d-I%03d-O%03d-M%02d-D%04d" % (fov_deg, nb_lens, NB_EN, nb_months, delta.seconds)
+        md = '' if mode == 'normal' else mode + '-'
+        name = "%sseville-F%03d-I%03d-O%03d-M%02d-D%04d" % (md, fov_deg, nb_lens, NB_EN, nb_months, delta.seconds)
         data = np.load(__datadir__ + "%s.npz" % name)
-        dates = np.load(__datadir__ + "M%02d-D%04d.npz" % (nb_months, delta.seconds))['m']
+        dates = np.load(__datadir__ + "%sM%02d-D%04d.npz" % (md, nb_months, delta.seconds))['m']
 
-        s = CompassSensor(nb_lenses=nb_lens, fov=np.deg2rad(fov_deg))
+        s = CompassSensor(nb_lenses=nb_lens, fov=np.deg2rad(fov_deg), mode=mode)
 
         # create and generate a sky instance
         observer.date = datetime.now()
@@ -41,7 +43,12 @@ if __name__ == "__main__":
 
         x, t = data['x'], data['t']
         t = np.array([decode_sun(t0) for t0 in t])
-        y = s.update_parameters(x=data['x'], t=data['t'])
+        if generate_weights:
+            y = s.update_parameters(x=data['x'], t=data['t'])
+            s.save_weights()
+        else:
+            s.load_weights()
+            y = s(data['x'], decode=True)
         mse.append(MSE(y, t))
         mse_lon.append(MSE(y, t, theta=False))
         mse_lat.append(MSE(y, t, phi=False))
@@ -56,18 +63,19 @@ if __name__ == "__main__":
     plt.title("Number of Lenses (FOV = 60 degrees)")
     plt.xticks(nb_lenses, nb_lenses)
     plt.xlim([0, 850])
-    plt.ylim([0, 35])
+    plt.ylim([0, 15])
     plt.ylabel("MSE (degrees)")
     plt.xlabel("Number of Lenses")
 
     # plt.figure("MSE - Field of view", figsize=(15, 10))
     mse, mse_lon, mse_lat, fovs_ = [],  [], [], []
     for fov_deg_, nb_lens_ in fovs:
-        name = "seville-F%03d-I%03d-O%03d-M%02d-D%04d" % (fov_deg_, nb_lens_, NB_EN, nb_months, delta.seconds)
+        md = '' if mode == 'normal' else mode + '-'
+        name = "%sseville-F%03d-I%03d-O%03d-M%02d-D%04d" % (md, fov_deg_, nb_lens_, NB_EN, nb_months, delta.seconds)
         data = np.load(__datadir__ + "%s.npz" % name)
-        dates = np.load(__datadir__ + "M%02d-D%04d.npz" % (nb_months, delta.seconds))['m']
+        dates = np.load(__datadir__ + "%sM%02d-D%04d.npz" % (md, nb_months, delta.seconds))['m']
 
-        s = CompassSensor(nb_lenses=nb_lens_, fov=np.deg2rad(fov_deg_))
+        s = CompassSensor(nb_lenses=nb_lens_, fov=np.deg2rad(fov_deg_), mode=mode)
 
         # create and generate a sky instance
         observer.date = datetime.now()
@@ -76,7 +84,12 @@ if __name__ == "__main__":
 
         x, t = data['x'], data['t']
         t = np.array([decode_sun(t0) for t0 in t])
-        y = s.update_parameters(x=data['x'], t=data['t'])
+        if generate_weights:
+            y = s.update_parameters(x=data['x'], t=data['t'])
+            s.save_weights()
+        else:
+            s.load_weights()
+            y = s(data['x'], decode=True)
         mse.append(MSE(y, t))
         mse_lon.append(MSE(y, t, theta=False))
         mse_lat.append(MSE(y, t, phi=False))
@@ -91,7 +104,7 @@ if __name__ == "__main__":
     plt.title("Field of View (similar density)")
     plt.xticks(fovs_)
     plt.xlim([0, 180])
-    plt.ylim([0, 35])
+    plt.ylim([0, 15])
     plt.xlabel("Field of View (degrees)")
 
     plt.show()

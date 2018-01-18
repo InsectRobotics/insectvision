@@ -1,8 +1,6 @@
 import os
-
 import healpy as hp
 import numpy as np
-import numpy.linalg as la
 
 from geometry import fibonacci_sphere, angles_distribution, LENS_RADIUS, A_lens
 from learn.whitening import zca
@@ -14,13 +12,14 @@ from sphere import sph2vec
 __dir__ = os.path.dirname(os.path.realpath(__file__)) + "/"
 __datadir__ = __dir__ + "../data/sensor/"
 
+np.random.seed(2018)
 NB_EN = 8
 DEBUG = False
 
 
 class CompassSensor(CompoundEye):
 
-    def __init__(self, nb_lenses=20, fov=np.deg2rad(60), kernel=zca, mode="normal"):
+    def __init__(self, nb_lenses=20, fov=np.deg2rad(60), kernel=zca, mode="normal", fibonacci=False):
 
         self.nb_lenses = nb_lenses
         self.fov = fov
@@ -58,10 +57,12 @@ class CompassSensor(CompoundEye):
             thetas = np.empty(0, dtype=np.float32)
             phis = np.empty(0, dtype=np.float32)
             fit = False
-        if not fit or nb_lenses > 100:
+        self.fibonacci = False
+        if fibonacci or not fit or nb_lenses > 100:
             thetas, phis = fibonacci_sphere(nb_lenses, np.rad2deg(fov))
-        thetas = (3 * np.pi/2 - thetas) % (2 * np.pi) - np.pi
-        phis = (2 * np.pi - phis) % (2 * np.pi) - np.pi
+            self.fibonacci = True
+        thetas = (thetas - np.pi) % (2 * np.pi) - np.pi
+        phis = (phis + np.pi) % (2 * np.pi) - np.pi
 
         super(CompassSensor, self).__init__(
             ommatidia=np.array([thetas.flatten(), phis.flatten()]).T,
@@ -75,8 +76,19 @@ class CompassSensor(CompoundEye):
         self.__x_new = np.zeros(nb_lenses, dtype=np.float32)
         self.__x_last = np.zeros(nb_lenses, dtype=np.float32) * np.nan
 
-        self.w = np.random.randn(thetas.size, NB_EN)
+        # computational parameters
+        self.nb_tl1 = 16
+        self.nb_cl1 = 16
+        self.nb_tb1 = 8
         self.w_whitening = np.eye(thetas.size)
+        self.w_tl1 = np.random.randn(thetas.size, self.nb_tl1)
+        self.w_cl1 = np.random.randn(self.nb_tl1, self.nb_cl1)
+        self.w_tb1 = np.random.randn(self.nb_cl1, self.nb_tb1)
+        self.w = [self.w_tl1, self.w_cl1, self.w_tb1]
+        self.b_tl1 = np.random.randn(self.nb_tl1)
+        self.b_cl1 = np.random.randn(self.nb_cl1)
+        self.b_tb1 = np.random.randn(self.nb_tb1)
+        self.b = [self.b_tl1, self.b_cl1, self.b_tb1]
         self.m = np.zeros(thetas.size)
 
     @property
@@ -97,7 +109,13 @@ class CompassSensor(CompoundEye):
             x = self.__x_new.reshape((-1, 2))
             uv = x[:, 1] / uv_max
             b = x[:, 0] / b_max
-            x = uv / (uv + b)
+            x = np.zeros_like(uv)
+            z = uv + b
+            m = np.any([np.isnan(z), np.isclose(z, 0.)], axis=0)
+            x[~m] = (uv / z)[~m]
+            # x[np.isnan(x)] = 0.
+            return x
+            # return np.clip((x - x[x > 0].min()) / (x.max() - x[x > 0].min()), 0, 1)
         else:
             x = self.__x_new
 
@@ -105,7 +123,7 @@ class CompassSensor(CompoundEye):
         x_max = x.max()
         x_min = x.min()
         if (x_max - x_min) > 0:
-            x = (x - x_min) / (x_max - x_min)
+            x = np.clip((x - x[x > 0].min()) / (x.max() - x[x > 0].min()), 0, 1)
         else:
             x -= x_min
         if self.mode == "event":
@@ -123,7 +141,7 @@ class CompassSensor(CompoundEye):
             self.__x_last = self.__x_new
         self.__x_new = super(CompassSensor, self).L.flatten()
 
-    def update_parameters(self, x, t=None):
+    def update_parameters(self, x, t=None, **kwargs):
         """
 
         :param x:
@@ -132,6 +150,15 @@ class CompassSensor(CompoundEye):
         :type t: np.ndarray
         :return:
         """
+
+        kwargs["hidden_layer_sizes"] = kwargs.get("hidden_layer_sizes", (16, 16))
+        kwargs["activation"] = kwargs.get("activation", "relu")
+        kwargs["solver"] = kwargs.get("solver", "adam")
+        kwargs["random_state"] = kwargs.get("random_state", 2018)
+        kwargs["alpha"] = kwargs.get("alpha", .001)
+        kwargs["tol"] = kwargs.get("tol", .0)
+        kwargs["verbose"] = kwargs.get("verbose", True)
+
         if isinstance(x, SkyModel):
             sky_model = x  # type: SkyModel
             x = np.empty((0, self.L.size), dtype=np.float32)
@@ -147,13 +174,22 @@ class CompassSensor(CompoundEye):
             self.yaw = r
             self.sky = sky_model
 
-        # self.w = (1. - self.learning_rate) * self.w + self.learning_rate * la.pinv(x).dot(t)
         x[np.isnan(x)] = 0.
         self.m = x.mean(axis=0)
         if self.kernel is not None:
             self.w_whitening = self.kernel(x)
         if t is not None:
-            self.w = la.pinv(self._pprop(x), 1e-01).dot(t)
+            from sklearn.neural_network import MLPRegressor
+
+            clf = MLPRegressor(**kwargs)
+            x_white = self._pprop(x)
+            clf.fit(x_white, t)
+            self.w[0][:] = self.w_tl1[:] = clf.coefs_[0][:]
+            self.w[1][:] = self.w_cl1[:] = clf.coefs_[1][:]
+            self.w[2][:] = self.w_tb1[:] = clf.coefs_[2][:]
+            self.b[0][:] = self.b_tl1[:] = clf.intercepts_[0][:]
+            self.b[1][:] = self.b_cl1[:] = clf.intercepts_[1][:]
+            self.b[2][:] = self.b_tb1[:] = clf.intercepts_[2][:]
 
         return self._fprop(x)
 
@@ -169,36 +205,51 @@ class CompassSensor(CompoundEye):
         decode = kwargs.get('decode', False)
         if len(args) > 1:
             decode = args[1]  # type: bool
-        return self._fprop(x, decode=decode).flatten()
+        return self._fprop(x, decode=decode)
 
     def _pprop(self, x):
         # return x
         return (x.reshape((-1, self.nb_lenses)) - self.m).dot(self.w_whitening)
 
     def _fprop(self, x, decode=True):
-        x = self._pprop(x)
+        h = self._pprop(x)
+        for j, (w, b) in enumerate(zip(self.w, self.b)):
+            h = h.dot(w) + b
+            if j < len(self.w) - 1:
+                h = np.clip(h, 0, np.finfo(h.dtype).max)
         if decode:
-            y = []
-            for x0 in x.dot(self.w):
-                y.append(decode_sun(x0))
-            return np.array(y)
+            return np.array([decode_sun(h0) for h0 in h])
         else:
-            return x.dot(self.w)
+            return h
 
     def save_weights(self):
-        name = "sensor-L%03d-V%03d.npz" % (self.nb_lenses, np.rad2deg(self.fov))
-        np.savez_compressed(__datadir__ + name, w=self.w, w_whitening=self.w_whitening)
+        mode = '' if self.mode == 'normal' else self.mode + '-'
+        name = "%ssensor-L%03d-V%03d" % (mode, self.nb_lenses, np.rad2deg(self.fov))
+        if self.fibonacci:
+            name += "-fibonacci"
+        name += ".npz"
+        np.savez_compressed(__datadir__ + name, w=self.w, b=self.b, w_whitening=self.w_whitening, m=self.m)
 
     def load_weights(self, filename=None):
         if filename is None:
-            name = "sensor-L%03d-V%03d.npz" % (self.nb_lenses, np.rad2deg(self.fov))
+            mode = '' if self.mode == 'normal' else self.mode + '-'
+            name = "%ssensor-L%03d-V%03d" % (mode, self.nb_lenses, np.rad2deg(self.fov))
+            if self.fibonacci:
+                name += "-fibonacci"
+            name += ".npz"
             filename = __datadir__ + name
         weights = np.load(filename)
-        self.w = weights["w"]
         self.w_whitening = weights["w_whitening"]
+        self.w[0][:] = self.w_tl1[:] = weights["w"][0][:]
+        self.w[1][:] = self.w_cl1[:] = weights["w"][1][:]
+        self.w[2][:] = self.w_tb1[:] = weights["w"][2][:]
+        self.b[0][:] = self.b_tl1[:] = weights["b"][0][:]
+        self.b[1][:] = self.b_cl1[:] = weights["b"][1][:]
+        self.b[2][:] = self.b_tb1[:] = weights["b"][2][:]
+        self.m = weights["m"]
 
     @classmethod
-    def visualise(cls, sensor, interactive=False):
+    def visualise(cls, sensor, sL=None, show_sun=False, sides=True, interactive=False, colormap=None, title=None):
         """
 
         :param sensor:
@@ -207,15 +258,29 @@ class CompassSensor(CompoundEye):
         """
         import matplotlib.pyplot as plt
         from matplotlib.patches import Ellipse, Rectangle
+        from matplotlib.cm import get_cmap
+
         if interactive:
             plt.ion()
 
-        xyz = sph2vec(sensor.theta_local, sensor.phi_local, sensor.R_c)
+        if colormap is not None:
+            get_colour = lambda x: get_cmap(colormap)(x)
+        else:
+            get_colour = lambda x: x * np.array([.5, .5, 1.])
+        xyz = sph2vec(np.pi/2 - sensor.theta_local, np.pi + sensor.phi_local, sensor.R_c)
+        xyz[0] *= -1
+        sun = np.array([np.pi + sensor.sky.lon, np.pi/2 - sensor.sky.lat, 0])
+        sun = sensor.rotate_centre(sun, -sensor.yaw, -sensor.pitch, -sensor.roll)
+        xyz_sun = sph2vec(sun[1], sun[0], sensor.R_c)
+        xyz_sun[:2] *= -1
 
-        plt.figure("Sensor Design", figsize=(10, 10))
+        plt.figure("Sensor Design" if title is None else title, figsize=(10, 10))
 
         # top view
-        ax_t = plt.subplot2grid((4, 4), (1, 1), colspan=2, rowspan=2, aspect="equal", adjustable='box-forced')
+        if sides:
+            ax_t = plt.subplot2grid((4, 4), (1, 1), colspan=2, rowspan=2, aspect="equal", adjustable='box-forced')
+        else:
+            ax_t = plt.subplot(111)
         outline = Ellipse(xy=np.zeros(2),
                           width=2 * sensor.R_c,
                           height=2 * sensor.R_c)
@@ -231,139 +296,145 @@ class CompassSensor(CompoundEye):
         sensor_outline.set_alpha(.5)
         sensor_outline.set_facecolor("grey")
 
-        stheta, sphi, sL = np.pi/2 - sensor.theta_local, sensor.phi_local, sensor.L
+        stheta, sphi = sensor.theta_local, np.pi + sensor.phi_local
+        sL = sL if sL is not None else sensor.L
         if sensor.mode == "event":
             sL = np.clip(1. * sL + .5, 0., 1.)
         for (x, y, z), th, ph, L in zip(xyz.T, stheta, sphi, sL):
 
             lens = Ellipse(xy=[x, y], width=1.5 * sensor.r_l, height=1.5 * np.cos(th) * sensor.r_l,
-                           angle=np.rad2deg(-ph))
+                           angle=np.rad2deg(ph))
             ax_t.add_artist(lens)
             lens.set_clip_box(ax_t.bbox)
-            lens.set_facecolor(np.array([0., 0., 1.]) * L)
+            lens.set_facecolor(get_colour(np.asscalar(L)))
+        if show_sun:
+            ax_t.plot(xyz_sun[0], xyz_sun[1], 'ro')
 
         ax_t.set_xlim(-sensor.R_c - 2, sensor.R_c + 2)
         ax_t.set_ylim(-sensor.R_c - 2, sensor.R_c + 2)
         ax_t.set_xticklabels([])
         ax_t.set_yticklabels([])
 
-        # side view #1 (x, z)
-        ax = plt.subplot2grid((4, 4), (0, 1), colspan=2, aspect="equal", adjustable='box-forced', sharex=ax_t)
-        outline = Ellipse(xy=np.zeros(2),
-                          width=2 * sensor.R_c,
-                          height=2 * sensor.R_c)
-        fade_one = Rectangle(xy=[-sensor.R_c, -sensor.R_c],
-                             width=2 * sensor.R_c,
-                             height=2 * sensor.R_c - sensor.height - sensor.R_l)
-        ax.add_artist(outline)
-        outline.set_clip_box(ax.bbox)
-        outline.set_alpha(.5)
-        outline.set_facecolor("grey")
-        ax.add_artist(fade_one)
-        fade_one.set_clip_box(ax.bbox)
-        fade_one.set_alpha(.6)
-        fade_one.set_facecolor("white")
-        for (x, y, z), th, ph, L in zip(xyz.T, stheta, sphi, sL):
-            if y > 0:
-                continue
-            lens = Ellipse(xy=[x, z], width=1.5 * sensor.r_l, height=np.sin(-y / sensor.R_c) * 1.5 * sensor.r_l,
-                           angle=np.rad2deg(np.arcsin(-x / sensor.R_c)))
-            ax.add_artist(lens)
-            lens.set_clip_box(ax.bbox)
-            lens.set_facecolor(np.array([0., 0., 1.]) * L)
+        if sides:
+            # side view #1 (x, z)
+            ax = plt.subplot2grid((4, 4), (0, 1), colspan=2, aspect="equal", adjustable='box-forced', sharex=ax_t)
+            outline = Ellipse(xy=np.zeros(2),
+                              width=2 * sensor.R_c,
+                              height=2 * sensor.R_c)
+            fade_one = Rectangle(xy=[-sensor.R_c, -sensor.R_c],
+                                 width=2 * sensor.R_c,
+                                 height=2 * sensor.R_c - sensor.height - sensor.R_l)
+            ax.add_artist(outline)
+            outline.set_clip_box(ax.bbox)
+            outline.set_alpha(.5)
+            outline.set_facecolor("grey")
+            ax.add_artist(fade_one)
+            fade_one.set_clip_box(ax.bbox)
+            fade_one.set_alpha(.6)
+            fade_one.set_facecolor("white")
+            for (x, y, z), th, ph, L in zip(xyz.T, stheta, sphi, sL):
+                if y > 0:
+                    continue
+                lens = Ellipse(xy=[x, z], width=1.5 * sensor.r_l, height=np.sin(-y / sensor.R_c) * 1.5 * sensor.r_l,
+                               angle=np.rad2deg(np.arcsin(-x / sensor.R_c)))
+                ax.add_artist(lens)
+                lens.set_clip_box(ax.bbox)
+                lens.set_facecolor(get_colour(L))
 
-        ax.set_xlim(-sensor.R_c - 2, sensor.R_c + 2)
-        ax.set_ylim(0, sensor.R_c + 2)
-        ax.set_xticks([])
-        ax.set_yticks([])
+            ax.set_xlim(-sensor.R_c - 2, sensor.R_c + 2)
+            ax.set_ylim(0, sensor.R_c + 2)
+            ax.set_xticks([])
+            ax.set_yticks([])
 
-        # side view #2 (-x, z)
-        ax = plt.subplot2grid((4, 4), (3, 1), colspan=2, aspect="equal", adjustable='box-forced', sharex=ax_t)
-        outline = Ellipse(xy=np.zeros(2),
-                          width=2 * sensor.R_c,
-                          height=2 * sensor.R_c)
-        fade_one = Rectangle(xy=[-sensor.R_c, -sensor.R_c + sensor.height + sensor.R_l],
-                             width=2 * sensor.R_c,
-                             height=2 * sensor.R_c - sensor.height - sensor.R_l)
-        ax.add_artist(outline)
-        outline.set_clip_box(ax.bbox)
-        outline.set_alpha(.5)
-        outline.set_facecolor("grey")
-        ax.add_artist(fade_one)
-        fade_one.set_clip_box(ax.bbox)
-        fade_one.set_alpha(.6)
-        fade_one.set_facecolor("white")
-        for (x, y, z), th, ph, L in zip(xyz.T, stheta, sphi, sL):
-            if y < 0:
-                continue
-            lens = Ellipse(xy=[x, -z], width=1.5 * sensor.r_l, height=np.sin(-y / sensor.R_c) * 1.5 * sensor.r_l,
-                           angle=np.rad2deg(np.arcsin(x / sensor.R_c)))
-            ax.add_artist(lens)
-            lens.set_clip_box(ax.bbox)
-            lens.set_facecolor(np.array([0., 0., 1.]) * L)
+            # side view #2 (-x, z)
+            ax = plt.subplot2grid((4, 4), (3, 1), colspan=2, aspect="equal", adjustable='box-forced', sharex=ax_t)
+            outline = Ellipse(xy=np.zeros(2),
+                              width=2 * sensor.R_c,
+                              height=2 * sensor.R_c)
+            fade_one = Rectangle(xy=[-sensor.R_c, -sensor.R_c + sensor.height + sensor.R_l],
+                                 width=2 * sensor.R_c,
+                                 height=2 * sensor.R_c - sensor.height - sensor.R_l)
+            ax.add_artist(outline)
+            outline.set_clip_box(ax.bbox)
+            outline.set_alpha(.5)
+            outline.set_facecolor("grey")
+            ax.add_artist(fade_one)
+            fade_one.set_clip_box(ax.bbox)
+            fade_one.set_alpha(.6)
+            fade_one.set_facecolor("white")
+            for (x, y, z), th, ph, L in zip(xyz.T, stheta, sphi, sL):
+                if y < 0:
+                    continue
+                lens = Ellipse(xy=[x, -z], width=1.5 * sensor.r_l, height=np.sin(-y / sensor.R_c) * 1.5 * sensor.r_l,
+                               angle=np.rad2deg(np.arcsin(x / sensor.R_c)))
+                ax.add_artist(lens)
+                lens.set_clip_box(ax.bbox)
+                lens.set_facecolor(get_colour(L))
 
-        ax.set_xlim(-sensor.R_c - 2, sensor.R_c + 2)
-        ax.set_ylim(-sensor.R_c - 2, 0)
-        ax.set_yticks([])
+            ax.set_xlim(-sensor.R_c - 2, sensor.R_c + 2)
+            ax.set_ylim(-sensor.R_c - 2, 0)
+            ax.set_yticks([])
 
-        # side view #3 (y, z)
-        ax = plt.subplot2grid((4, 4), (1, 3), rowspan=2, aspect="equal", adjustable='box-forced', sharey=ax_t)
-        outline = Ellipse(xy=np.zeros(2),
-                          width=2 * sensor.R_c,
-                          height=2 * sensor.R_c)
-        fade_one = Rectangle(xy=[-sensor.R_c, -sensor.R_c],
-                             width=2 * sensor.R_c - sensor.height - sensor.R_l,
-                             height=2 * sensor.R_c)
-        ax.add_artist(outline)
-        outline.set_clip_box(ax.bbox)
-        outline.set_alpha(.5)
-        outline.set_facecolor("grey")
-        ax.add_artist(fade_one)
-        fade_one.set_clip_box(ax.bbox)
-        fade_one.set_alpha(.6)
-        fade_one.set_facecolor("white")
-        for (x, y, z), th, ph, L in zip(xyz.T, stheta, sphi, sL):
-            if x > 0:
-                continue
-            lens = Ellipse(xy=[z, y], width=1.5 * sensor.r_l, height=np.sin(-x / sensor.R_c) * 1.5 * sensor.r_l,
-                           angle=np.rad2deg(np.arcsin(y / sensor.R_c)) + 90)
-            ax.add_artist(lens)
-            lens.set_clip_box(ax.bbox)
-            lens.set_facecolor(np.array([0., 0., 1.]) * L)
+            # side view #3 (y, z)
+            ax = plt.subplot2grid((4, 4), (1, 3), rowspan=2, aspect="equal", adjustable='box-forced', sharey=ax_t)
+            outline = Ellipse(xy=np.zeros(2),
+                              width=2 * sensor.R_c,
+                              height=2 * sensor.R_c)
+            fade_one = Rectangle(xy=[-sensor.R_c, -sensor.R_c],
+                                 width=2 * sensor.R_c - sensor.height - sensor.R_l,
+                                 height=2 * sensor.R_c)
+            ax.add_artist(outline)
+            outline.set_clip_box(ax.bbox)
+            outline.set_alpha(.5)
+            outline.set_facecolor("grey")
+            ax.add_artist(fade_one)
+            fade_one.set_clip_box(ax.bbox)
+            fade_one.set_alpha(.6)
+            fade_one.set_facecolor("white")
+            for (x, y, z), th, ph, L in zip(xyz.T, stheta, sphi, sL):
+                if x > 0:
+                    continue
+                lens = Ellipse(xy=[z, y], width=1.5 * sensor.r_l, height=np.sin(-x / sensor.R_c) * 1.5 * sensor.r_l,
+                               angle=np.rad2deg(np.arcsin(y / sensor.R_c)) + 90)
+                ax.add_artist(lens)
+                lens.set_clip_box(ax.bbox)
+                lens.set_facecolor(get_colour(L))
 
-        ax.set_ylim(-sensor.R_c - 2, sensor.R_c + 2)
-        ax.set_xlim(0, sensor.R_c + 2)
-        ax.set_yticks([])
-        ax.set_xticks([])
+            ax.set_ylim(-sensor.R_c - 2, sensor.R_c + 2)
+            ax.set_xlim(0, sensor.R_c + 2)
+            ax.set_yticks([])
+            ax.set_xticks([])
 
-        # side view #4 (-y, z)
-        ax = plt.subplot2grid((4, 4), (1, 0), rowspan=2, aspect="equal", adjustable='box-forced', sharey=ax_t)
-        outline = Ellipse(xy=np.zeros(2),
-                          width=2 * sensor.R_c,
-                          height=2 * sensor.R_c)
-        fade_one = Rectangle(xy=[-sensor.R_c + sensor.height + sensor.R_l, -sensor.R_c],
-                             width=2 * sensor.R_c - sensor.height - sensor.R_l,
-                             height=2 * sensor.R_c)
-        ax.add_artist(outline)
-        outline.set_clip_box(ax.bbox)
-        outline.set_alpha(.5)
-        outline.set_facecolor("grey")
-        ax.add_artist(fade_one)
-        fade_one.set_clip_box(ax.bbox)
-        fade_one.set_alpha(.6)
-        fade_one.set_facecolor("white")
-        for (x, y, z), th, ph, L in zip(xyz.T, stheta, sphi, sL):
-            if x < 0:
-                continue
-            lens = Ellipse(xy=[-z, y], width=1.5 * sensor.r_l, height=np.sin(-x / sensor.R_c) * 1.5 * sensor.r_l,
-                           angle=np.rad2deg(np.arcsin(-y / sensor.R_c)) - 90)
-            ax.add_artist(lens)
-            lens.set_clip_box(ax.bbox)
-            lens.set_facecolor(np.array([0., 0., 1.]) * L)
+            # side view #4 (-y, z)
+            ax = plt.subplot2grid((4, 4), (1, 0), rowspan=2, aspect="equal", adjustable='box-forced', sharey=ax_t)
+            outline = Ellipse(xy=np.zeros(2),
+                              width=2 * sensor.R_c,
+                              height=2 * sensor.R_c)
+            fade_one = Rectangle(xy=[-sensor.R_c + sensor.height + sensor.R_l, -sensor.R_c],
+                                 width=2 * sensor.R_c - sensor.height - sensor.R_l,
+                                 height=2 * sensor.R_c)
+            ax.add_artist(outline)
+            outline.set_clip_box(ax.bbox)
+            outline.set_alpha(.5)
+            outline.set_facecolor("grey")
+            ax.add_artist(fade_one)
+            fade_one.set_clip_box(ax.bbox)
+            fade_one.set_alpha(.6)
+            fade_one.set_facecolor("white")
+            for (x, y, z), th, ph, L in zip(xyz.T, stheta, sphi, sL):
+                if x < 0:
+                    continue
+                lens = Ellipse(xy=[-z, y], width=1.5 * sensor.r_l, height=np.sin(-x / sensor.R_c) * 1.5 * sensor.r_l,
+                               angle=np.rad2deg(np.arcsin(-y / sensor.R_c)) - 90)
+                ax.add_artist(lens)
+                lens.set_clip_box(ax.bbox)
+                lens.set_facecolor(get_colour(L))
 
-        ax.set_ylim(-sensor.R_c - 2, sensor.R_c + 2)
-        ax.set_xlim(-sensor.R_c - 2, 0)
-        ax.set_xticks([])
+            ax.set_ylim(-sensor.R_c - 2, sensor.R_c + 2)
+            ax.set_xlim(-sensor.R_c - 2, 0)
+            ax.set_xticks([])
+        else:
+            plt.axis('off')
 
         plt.tight_layout(pad=0.)
 
@@ -429,15 +500,20 @@ if __name__ == "__main__":
     from datetime import datetime
 
     # modes: "normal", "cross", "event"
-    s = CompassSensor(nb_lenses=60, fov=np.deg2rad(60), mode="normal")
+    s = CompassSensor(fov=np.deg2rad(60), nb_lenses=840, mode="cross", fibonacci=False)
+    # s.activate_pol_filters(False)
     # s.load_weights()
 
     # default observer is in Seville (where the data come from)
     observer = get_seville_observer()
-    observer.date = datetime(2018, 6, 21, 10, 0, 0)
+    observer.date = datetime(2018, 6, 21, 8, 0, 0)
 
     s.sky.obs = observer
-    for angle in np.linspace(0, 3 * np.pi, 9, endpoint=False):
+    # s.rotate(pitch=np.pi/2)
+    # s.rotate(yaw=np.pi/2)
+    # s.rotate(yaw=-np.pi/2)
+    # s.rotate(pitch=np.pi/12)
+    for angle in np.linspace(0, 2 * np.pi, 13, endpoint=True):
         s.refresh()
         # lon, lat = sky.lon, sky.lat
         # print "Reality: Lon = %.2f, Lat = %.2f" % (np.rad2deg(lon), np.rad2deg(lat))
@@ -445,8 +521,11 @@ if __name__ == "__main__":
         # print "Prediction: Lon = %.2f, Lat = %.2f" % (np.rad2deg(lon), np.rad2deg(lat))
         # s.rotate(np.deg2rad(90))
         # s.set_sky(sky)
-        CompassSensor.visualise(s, interactive=True)
-        s.rotate(yaw=np.pi/3)
+        CompassSensor.visualise(s, sides=False, interactive=False,  # colormap="coolwarm",
+                                title="%s-sensor_design_%03d_%03d" % (s.mode, np.rad2deg(s.fov), s.nb_lenses),
+                                show_sun=False)
+        s.rotate(yaw=np.pi/6)
+        break
 
 
 if __name__ == "__main__2__":

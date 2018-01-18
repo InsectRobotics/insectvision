@@ -1,4 +1,5 @@
 import numpy as np
+from copy import copy
 from utils import get_microvilli_angle
 from sky import SkyModel
 
@@ -74,10 +75,11 @@ class CompoundEye(object):
         for kk in ['r', 'g', 'b', 'uv']:
             if kk in ks:
                 k.append(kk)
-        i, d, a = self.sky.L / np.sqrt(2), self.sky.DOP, self.sky.AOP
+        i, d, a = self.sky.L / np.sqrt(2), self.DOP, self.AOP
         lum_channels = np.array([
             pf(cf(i), a, d) for cf, pf in [self._channel_filters[c] for c in k]
         ]).T
+        lum_channels[np.isclose(i, 0.)] *= 0.
         return np.clip(lum_channels, 0, 1)
 
     @property
@@ -86,7 +88,7 @@ class CompoundEye(object):
 
     @property
     def AOP(self):
-        return self.sky.AOP
+        return (self.yaw + self.sky.AOP) % (2 * np.pi)
 
     @property
     def theta_global(self):
@@ -121,7 +123,7 @@ class CompoundEye(object):
         theta_z, phi_z = SkyModel.rotate(self.theta_global, self.phi_global, yaw=-self.yaw)
         theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, pitch=-self.pitch)
         theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, roll=-self.roll)
-        return (np.pi + phi_z) % (2 * np.pi) - np.pi
+        return (phi_z + np.pi) % (2 * np.pi) - np.pi
 
     @property
     def yaw(self):
@@ -157,7 +159,7 @@ class CompoundEye(object):
 
         # update the facing direction of the eye
         self.yaw_pitch_roll = self.rotate_centre(
-            self.yaw_pitch_roll, yaw=yaw, pitch=pitch, roll=roll
+            self.yaw_pitch_roll, yaw=yaw, pitch=-pitch, roll=roll
         )
 
         # rotate the sky according to the new facing direction
@@ -188,7 +190,7 @@ class CompoundEye(object):
     @staticmethod
     def rotate_centre(centre, yaw=0., pitch=0., roll=0.):
         # centre[[1, 0]] = SkyModel.rotate(centre[1], centre[0], yaw=yaw, pitch=pitch, roll=roll)
-        centre[[1, 0]] = SkyModel.rotate(np.pi / 2 - centre[1], np.pi - centre[0], yaw=yaw, pitch=pitch)
+        centre[[1, 0]] = SkyModel.rotate(np.pi / 2 - centre[1], np.pi - centre[0], yaw=yaw, pitch=-pitch, roll=-roll)
 
         centre[0] = (2 * np.pi - centre[0]) % (2 * np.pi) - np.pi
         centre[1] = (3 * np.pi/2 - centre[1]) % (2 * np.pi) - np.pi
@@ -228,7 +230,7 @@ class WLFilter(Filter):
         self.weight = self.wl2int(wl_max)
 
     def __call__(self, *args, **kwargs):
-        i0 = super(WLFilter, self).__call__(*args, **kwargs)
+        i0 = copy(super(WLFilter, self).__call__(*args, **kwargs))
         i0 += self.weight * (1. - i0)
         return np.clip(i0, 0., 1.)
 
@@ -260,16 +262,17 @@ class POLFilter(Filter):
             dop = kwargs['dop']
         # print self.name,
 
+        i0 = lum / (1. - dop)
         # create the light coordinates
         d = aop - self.angle
         E1 = np.array([
             np.cos(d),
             np.sin(d)
-        ]) * lum
+        ]) * np.sqrt(i0)
         E2 = np.array([
             np.cos(d + np.pi/2),
             np.sin(d + np.pi/2)
-        ]) * lum * (1. - dop)
+        ]) * np.sqrt(i0) * (1. - dop)
 
         # filter the separate coordinates
         E1[1] *= (1. - self.degree)
@@ -277,8 +280,9 @@ class POLFilter(Filter):
 
         # the total intensity is the integration of the ellipse
         E = np.array([np.sqrt(np.square(E1).sum(axis=0)), np.sqrt(np.square(E2).sum(axis=0))])
-        # print E[0].max(), E[1].max()
         return np.sqrt(np.square(E).sum(axis=0))
+        # A = np.sqrt(np.square(E1).sum(axis=0)) * np.sqrt(np.square(E2).sum(axis=0))
+        # return A
 
 
 if __name__ == "__main__":
