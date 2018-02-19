@@ -19,7 +19,7 @@ DEBUG = False
 
 class CompassSensor(CompoundEye):
 
-    def __init__(self, nb_lenses=20, fov=np.deg2rad(60), kernel=zca, mode="normal", fibonacci=False):
+    def __init__(self, nb_lenses=60, fov=np.deg2rad(60), kernel=None, mode="cross", fibonacci=False):
 
         self.nb_lenses = nb_lenses
         self.fov = fov
@@ -70,26 +70,33 @@ class CompassSensor(CompoundEye):
             noise_factor=.0,
             activate_dop_sensitivity=False)
 
-        self._channel_filters.pop("g")
-        if self.mode != "cross":
-            self._channel_filters.pop("b")
+        # self._channel_filters.pop("g")
+        # if self.mode != "cross":
+        #     self._channel_filters.pop("b")
         self.__x_new = np.zeros(nb_lenses, dtype=np.float32)
         self.__x_last = np.zeros(nb_lenses, dtype=np.float32) * np.nan
 
         # computational parameters
-        self.nb_tl1 = 16
+        self.nb_tl2 = 16
         self.nb_cl1 = 16
         self.nb_tb1 = 8
         self.w_whitening = np.eye(thetas.size)
-        self.w_tl1 = np.random.randn(thetas.size, self.nb_tl1)
-        self.w_cl1 = np.random.randn(self.nb_tl1, self.nb_cl1)
-        self.w_tb1 = np.random.randn(self.nb_cl1, self.nb_tb1)
-        self.w = [self.w_tl1, self.w_cl1, self.w_tb1]
-        self.b_tl1 = np.random.randn(self.nb_tl1)
-        self.b_cl1 = np.random.randn(self.nb_cl1)
-        self.b_tb1 = np.random.randn(self.nb_tb1)
-        self.b = [self.b_tl1, self.b_cl1, self.b_tb1]
-        self.m = np.zeros(thetas.size)
+        self.w_tl2, self.w_cl1, self.w_tb1 = self.__init_weights()
+        self.w = [self.w_tl2, self.w_cl1, self.w_tb1]
+        self.b_tl2 = np.zeros(self.nb_tl2)
+        self.b_cl1 = np.zeros(self.nb_cl1)
+        self.b_tb1 = np.zeros(self.nb_tb1)
+        self.b = [self.b_tl2, self.b_cl1, self.b_tb1]
+        self.m = .5 * np.ones(thetas.size)
+        self.tl2 = np.zeros(self.nb_tl2)
+        self.cl1 = np.zeros(self.nb_cl1)
+        self.tb1 = np.zeros(self.nb_tb1)
+
+    def _update_filters(self):
+        super(CompassSensor, self)._update_filters()
+        self._channel_filters.pop("g")
+        if self.mode != "cross":
+            self._channel_filters.pop("b")
 
     @property
     def coverage(self):
@@ -110,8 +117,12 @@ class CompassSensor(CompoundEye):
             uv = x[:, 1] / uv_max
             b = x[:, 0] / b_max
             x = np.zeros_like(uv)
-            z = uv + b
+            z = uv + b + np.finfo(float).eps
+            # s = uv * np.sin(2 * self._aop_filter) + b * np.sin(2 * (self._aop_filter + np.pi/2))
+            # c = uv * np.cos(2 * self._aop_filter) + b * np.cos(2 * (self._aop_filter + np.pi/2))
+            # d = np.sqrt(np.square(s) + np.square(c))
             m = np.any([np.isnan(z), np.isclose(z, 0.)], axis=0)
+            # x[~m] = 2 * d[~m] / z + .5
             x[~m] = (uv / z)[~m]
             # x[np.isnan(x)] = 0.
             return x
@@ -151,12 +162,14 @@ class CompassSensor(CompoundEye):
         :return:
         """
 
-        kwargs["hidden_layer_sizes"] = kwargs.get("hidden_layer_sizes", (16, 16))
         kwargs["activation"] = kwargs.get("activation", "relu")
-        kwargs["solver"] = kwargs.get("solver", "adam")
+        kwargs["optimizer"] = kwargs.get("optimizer", "rmsprop")
+        kwargs["loss"] = kwargs.get("loss", "mse")
+        kwargs["nb_epoch"] = kwargs.get("nb_epoch", 100)
+        kwargs["batch_size"] = kwargs.get("batch_size", 1000)
         kwargs["random_state"] = kwargs.get("random_state", 2018)
-        kwargs["alpha"] = kwargs.get("alpha", .001)
-        kwargs["tol"] = kwargs.get("tol", .0)
+        kwargs["l2"] = kwargs.get("l2", 1e-05)
+        kwargs["constraint"] = kwargs.get("constraint", "unitnorm")
         kwargs["verbose"] = kwargs.get("verbose", True)
 
         if isinstance(x, SkyModel):
@@ -175,26 +188,60 @@ class CompassSensor(CompoundEye):
             self.sky = sky_model
 
         x[np.isnan(x)] = 0.
-        self.m = x.mean(axis=0)
+        if self.m is None:
+            self.m = x.mean(axis=0)
         if self.kernel is not None:
-            self.w_whitening = self.kernel(x)
+            self.w_whitening = self.kernel(x, m=self.m)
         if t is not None:
-            from sklearn.neural_network import MLPRegressor
+            np.random.seed(kwargs["random_state"])
+            import tensorflow as tf
+            tf.set_random_seed(kwargs["random_state"])
+            from keras.models import Model
+            from keras.layers import Dense, Input
+            from keras.regularizers import l2
+            from keras.constraints import get as get_constraint
 
-            clf = MLPRegressor(**kwargs)
+            hargs = {
+                "activation": kwargs["activation"],
+                "kernel_constraint": get_constraint(kwargs["constraint"]),
+                "bias_constraint": get_constraint(kwargs["constraint"])
+            }
+            oargs = {
+                "activation": "linear",
+                "kernel_regularizer": l2(kwargs["l2"]),
+                "bias_regularizer": l2(kwargs["l2"])
+            }
+
+            # create layers
+            inp = Input(shape=(self.nb_lenses,), name="DRA")
+            tl2 = Dense(self.nb_tl2, name="TL2", weights=[self.w_tl2, self.b_tl2], **hargs)
+            # tl2.trainable = False
+            cl1 = Dense(self.nb_cl1, name="CL1", weights=[self.w_cl1, self.b_cl1], **hargs)
+            # cl1.trainable = False
+            tb1 = Dense(self.nb_tb1, name="TB1", weights=[self.w_tb1, self.b_tb1], **oargs)
+            # tb1.trainable = False
+
+            # create model
+            model = Model(inputs=inp, outputs=tb1(cl1(tl2(inp))))
+            model.compile(optimizer=kwargs["optimizer"], loss=kwargs["loss"], metrics=[])
+
+            # fit data in the model
             x_white = self._pprop(x)
-            clf.fit(x_white, t)
-            self.w[0][:] = self.w_tl1[:] = clf.coefs_[0][:]
-            self.w[1][:] = self.w_cl1[:] = clf.coefs_[1][:]
-            self.w[2][:] = self.w_tb1[:] = clf.coefs_[2][:]
-            self.b[0][:] = self.b_tl1[:] = clf.intercepts_[0][:]
-            self.b[1][:] = self.b_cl1[:] = clf.intercepts_[1][:]
-            self.b[2][:] = self.b_tb1[:] = clf.intercepts_[2][:]
+            model.fit(x_white, t, nb_epoch=kwargs["nb_epoch"], batch_size=kwargs["batch_size"])
+
+            self.w[0][:] = self.w_tl2[:] = tl2.get_weights()[0][:]
+            self.w[1][:] = self.w_cl1[:] = cl1.get_weights()[0][:]
+            self.w[2][:] = self.w_tb1[:] = tb1.get_weights()[0][:]
+            self.b[0][:] = self.b_tl2[:] = tl2.get_weights()[1][:]
+            self.b[1][:] = self.b_cl1[:] = cl1.get_weights()[1][:]
+            self.b[2][:] = self.b_tb1[:] = tb1.get_weights()[1][:]
 
         return self._fprop(x)
 
     def __call__(self, *args, **kwargs):
-        if isinstance(args[0], np.ndarray):
+        if len(args) == 0:
+            x = self.L
+        elif isinstance(args[0], np.ndarray):
             x = args[0]  # type: np.ndarray
         elif isinstance(args[0], SkyModel):
             self.sky = args[0]
@@ -213,43 +260,79 @@ class CompassSensor(CompoundEye):
 
     def _fprop(self, x, decode=True):
         h = self._pprop(x)
-        for j, (w, b) in enumerate(zip(self.w, self.b)):
+        for j, (w, b, v) in enumerate(zip(self.w, self.b, [self.tl2, self.cl1, self.tb1])):
             h = h.dot(w) + b
             if j < len(self.w) - 1:
                 h = np.clip(h, 0, np.finfo(h.dtype).max)
+            if h.size == v.size:
+                v[:] = h[:]
         if decode:
             return np.array([decode_sun(h0) for h0 in h])
         else:
             return h
 
-    def save_weights(self):
-        mode = '' if self.mode == 'normal' else self.mode + '-'
-        name = "%ssensor-L%03d-V%03d" % (mode, self.nb_lenses, np.rad2deg(self.fov))
-        if self.fibonacci:
-            name += "-fibonacci"
-        name += ".npz"
-        np.savez_compressed(__datadir__ + name, w=self.w, b=self.b, w_whitening=self.w_whitening, m=self.m)
-
-    def load_weights(self, filename=None):
+    def save_weights(self, filename=None, name=None):
         if filename is None:
             mode = '' if self.mode == 'normal' else self.mode + '-'
-            name = "%ssensor-L%03d-V%03d" % (mode, self.nb_lenses, np.rad2deg(self.fov))
-            if self.fibonacci:
-                name += "-fibonacci"
-            name += ".npz"
+            if name is None:
+                name = "%ssensor-L%03d-V%03d" % (mode, self.nb_lenses, np.rad2deg(self.fov))
+                if self.fibonacci:
+                    name += "-fibonacci"
+            if ".npz" not in name:
+                name += ".npz"
             filename = __datadir__ + name
-        weights = np.load(filename)
-        self.w_whitening = weights["w_whitening"]
-        self.w[0][:] = self.w_tl1[:] = weights["w"][0][:]
-        self.w[1][:] = self.w_cl1[:] = weights["w"][1][:]
-        self.w[2][:] = self.w_tb1[:] = weights["w"][2][:]
-        self.b[0][:] = self.b_tl1[:] = weights["b"][0][:]
-        self.b[1][:] = self.b_cl1[:] = weights["b"][1][:]
-        self.b[2][:] = self.b_tb1[:] = weights["b"][2][:]
-        self.m = weights["m"]
+        np.savez_compressed(filename, w=self.w, b=self.b, w_whitening=self.w_whitening, m=self.m)
+
+    def load_weights(self, filename=None, name=None):
+        if filename is None:
+            if name is None:
+                mode = '' if self.mode == 'normal' else self.mode + '-'
+                name = "%ssensor-L%03d-V%03d" % (mode, self.nb_lenses, np.rad2deg(self.fov))
+                if self.fibonacci:
+                    name += "-fibonacci"
+            if ".npz" not in name:
+                name += ".npz"
+            filename = __datadir__ + name
+        try:
+            weights = np.load(filename)
+            self.w_whitening = weights["w_whitening"]
+            self.w[0][:] = self.w_tl2[:] = weights["w"][0][:]
+            self.w[1][:] = self.w_cl1[:] = weights["w"][1][:]
+            self.w[2][:] = self.w_tb1[:] = weights["w"][2][:]
+            self.b[0][:] = self.b_tl2[:] = weights["b"][0][:]
+            self.b[1][:] = self.b_cl1[:] = weights["b"][1][:]
+            self.b[2][:] = self.b_tb1[:] = weights["b"][2][:]
+            self.m = weights["m"]
+        except ValueError:
+            print "Weights do not fit the current structure."
+
+    def __init_weights(self, layers=True):
+        w_tl2 = .5 * np.sin(-self.phi_local[..., np.newaxis] + np.linspace(0, 4 * np.pi, self.nb_tl2, endpoint=False))
+
+        w_cl1 = []
+        for j, b in enumerate(np.linspace(0, 4 * np.pi, self.nb_cl1, endpoint=False)):
+            w_cl1.append(.5 * np.sin(-np.linspace(0, 4 * np.pi, self.nb_tl2, endpoint=False) + b))
+        w_cl1 = np.array(w_cl1)
+
+        if not layers:
+            w_tl2 = np.pi * (2. * w_tl2).dot(2. * w_cl1) / 60.
+            w_cl1 = -np.eye(self.nb_tl2, self.nb_cl1)
+
+            w_tb1_1 = np.eye(self.nb_cl1, self.nb_tb1)
+            w_tb1_2 = np.roll(np.roll(np.eye(self.nb_cl1, self.nb_tb1), self.nb_tb1, axis=0), self.nb_tb1/2, axis=1)
+            w_tb1 = -(.5 * w_tb1_1 - .5 * w_tb1_2)
+        else:
+            w_tl2 *= np.absolute(self.theta_local[..., np.newaxis]) / 2.
+            w_tb1 = np.tile(np.eye(self.nb_tb1), 2).T
+            w_tb1_1 = np.eye(self.nb_cl1, self.nb_tb1)
+            w_tb1_2 = np.roll(np.roll(np.eye(self.nb_cl1, self.nb_tb1), self.nb_tb1, axis=0), self.nb_tb1 / 2, axis=1)
+            w_tb1 = w_tb1_1 - w_tb1_2
+
+        return w_tl2, w_cl1, w_tb1
 
     @classmethod
-    def visualise(cls, sensor, sL=None, show_sun=False, sides=True, interactive=False, colormap=None, title=None):
+    def visualise(cls, sensor, sL=None, show_sun=False, sides=True, interactive=False, colormap=None, scale=[0, 1],
+                  title=None):
         """
 
         :param sensor:
@@ -259,6 +342,7 @@ class CompassSensor(CompoundEye):
         import matplotlib.pyplot as plt
         from matplotlib.patches import Ellipse, Rectangle
         from matplotlib.cm import get_cmap
+        import matplotlib as mpl
 
         if interactive:
             plt.ion()
@@ -269,18 +353,30 @@ class CompassSensor(CompoundEye):
             get_colour = lambda x: x * np.array([.5, .5, 1.])
         xyz = sph2vec(np.pi/2 - sensor.theta_local, np.pi + sensor.phi_local, sensor.R_c)
         xyz[0] *= -1
-        sun = np.array([np.pi + sensor.sky.lon, np.pi/2 - sensor.sky.lat, 0])
-        sun = sensor.rotate_centre(sun, -sensor.yaw, -sensor.pitch, -sensor.roll)
-        xyz_sun = sph2vec(sun[1], sun[0], sensor.R_c)
-        xyz_sun[:2] *= -1
 
-        plt.figure("Sensor Design" if title is None else title, figsize=(10, 10))
+        lat, lon = hp.Rotator(rot=(
+            np.rad2deg(-sensor.yaw), np.rad2deg(-sensor.pitch), np.rad2deg(-sensor.roll)
+        ))(sensor.sky.lat, np.pi-sensor.sky.lon)
+        xyz_sun = sph2vec(np.pi/2 - lat, np.pi + lon, sensor.R_c)
+        xyz_sun[0] *= -1
+
+        if sides:
+            figsize = (10, 10)
+        else:
+            if colormap is None or scale is None:
+                figsize = (5, 5)
+            else:
+                figsize = (5.05, 5.05)
+        plt.figure("Sensor Design" if title is None else title, figsize=figsize)
 
         # top view
         if sides:
             ax_t = plt.subplot2grid((4, 4), (1, 1), colspan=2, rowspan=2, aspect="equal", adjustable='box-forced')
         else:
-            ax_t = plt.subplot(111)
+            if colormap is not None and scale is not None:
+                ax_t = plt.subplot2grid((10, 10), (0, 0), colspan=9, rowspan=9, aspect="equal", adjustable='box-forced')
+            else:
+                ax_t = plt.subplot(111)
         outline = Ellipse(xy=np.zeros(2),
                           width=2 * sensor.R_c,
                           height=2 * sensor.R_c)
@@ -308,7 +404,7 @@ class CompassSensor(CompoundEye):
             lens.set_clip_box(ax_t.bbox)
             lens.set_facecolor(get_colour(np.asscalar(L)))
         if show_sun:
-            ax_t.plot(xyz_sun[0], xyz_sun[1], 'ro')
+            ax_t.plot(xyz_sun[0], xyz_sun[1], 'ro', markersize=22)
 
         ax_t.set_xlim(-sensor.R_c - 2, sensor.R_c + 2)
         ax_t.set_ylim(-sensor.R_c - 2, sensor.R_c + 2)
@@ -436,6 +532,25 @@ class CompassSensor(CompoundEye):
         else:
             plt.axis('off')
 
+        if colormap is not None and not sides and scale is not None:
+            ax = plt.subplot2grid((10, 10), (9, 9), aspect="equal", adjustable='box-forced', projection='polar')
+            ax._direction = 2*np.pi
+            ax.set_theta_zero_location("N")
+
+            # quant_steps = 360
+            cb = mpl.colorbar.ColorbarBase(
+                ax,
+                cmap=get_cmap(colormap),
+                norm=mpl.colors.Normalize(0.0, 2*np.pi),
+                orientation='horizontal',
+                ticks=np.linspace(0, 2*np.pi, 4, endpoint=False)
+            )
+
+            cb.outline.set_visible(False)
+            # cb.ax.set_xticks([0, np.pi/6, np.pi/3, np.pi/2, 2*np.pi/3, 5*np.pi/6, np.pi])
+            cb.ax.set_xticklabels(np.linspace(scale[0], scale[1], 4, endpoint=False))
+            cb.ax.tick_params(pad=1, labelsize=8)
+
         plt.tight_layout(pad=0.)
 
         if interactive:
@@ -499,33 +614,45 @@ if __name__ == "__main__":
     from sky import get_seville_observer
     from datetime import datetime
 
+    tilting = False
+    step = 45
     # modes: "normal", "cross", "event"
-    s = CompassSensor(fov=np.deg2rad(60), nb_lenses=840, mode="cross", fibonacci=False)
+    s = CompassSensor(fov=np.deg2rad(60), nb_lenses=3000, mode="cross", fibonacci=False)
     # s.activate_pol_filters(False)
     # s.load_weights()
 
     # default observer is in Seville (where the data come from)
     observer = get_seville_observer()
-    observer.date = datetime(2018, 6, 21, 8, 0, 0)
+    observer.date = datetime(2018, 6, 21, 12, 0, 0)
 
     s.sky.obs = observer
-    # s.rotate(pitch=np.pi/2)
-    # s.rotate(yaw=np.pi/2)
-    # s.rotate(yaw=-np.pi/2)
-    # s.rotate(pitch=np.pi/12)
-    for angle in np.linspace(0, 2 * np.pi, 13, endpoint=True):
+    # s.rotate(pitch=np.pi / 2)
+
+    for i, angle in enumerate(np.linspace(0, 2 * np.pi, 13, endpoint=True)):
         s.refresh()
         # lon, lat = sky.lon, sky.lat
         # print "Reality: Lon = %.2f, Lat = %.2f" % (np.rad2deg(lon), np.rad2deg(lat))
         # lon, lat = s.update_parameters(sky)
         # print "Prediction: Lon = %.2f, Lat = %.2f" % (np.rad2deg(lon), np.rad2deg(lat))
-        # s.rotate(np.deg2rad(90))
-        # s.set_sky(sky)
-        CompassSensor.visualise(s, sides=False, interactive=False,  # colormap="coolwarm",
+        # sL = (s.L - .5).dot(s.w_whitening) * 3 + .5
+        sL = s.L
+        # print sL.min(), sL.max()
+        # sL = (sL - sL.min()) / (sL.max() - sL.min())
+        # sL = (sL - .5) / (sL.max() - sL.min()) + .5
+        # sL = ((s._aop_filter + np.pi) % (2 * np.pi) - np.pi) / (2 * np.pi) + .5
+        # sL = ((s.AOP + np.pi) % (2 * np.pi) - np.pi) / (2 * np.pi) + .5
+        # d = (s.AOP - s._aop_filter + np.pi) % (2 * np.pi) - np.pi
+        # sL = .5 * np.cos(d) + .5
+        # sL = np.sqrt((np.square(np.cos(d) * s.sky.L / 14) + np.square(np.sin(d + np.pi/2) * s.sky.L / 14)))
+        # sL = s.sky.L / 14
+        print sL.min(), sL.max()
+        CompassSensor.visualise(s, sL=sL, colormap="coolwarm",
                                 title="%s-sensor_design_%03d_%03d" % (s.mode, np.rad2deg(s.fov), s.nb_lenses),
-                                show_sun=False)
+                                show_sun=True, sides=False, interactive=False, scale=[0, 1])
         s.rotate(yaw=np.pi/6)
-        break
+        # observer.date = datetime(2018, 6, 21, 8 + i, 0, 0)
+        # s.sky.obs = observer
+        # break
 
 
 if __name__ == "__main__2__":

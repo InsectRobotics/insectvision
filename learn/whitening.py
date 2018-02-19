@@ -37,7 +37,7 @@ def svd2zca(U, S, V, epsilon=10e-5):
     return U.dot(np.diag(1. / np.sqrt(S + epsilon))).dot(U.T)
 
 
-def build_kernel(x, svd2ker, epsilon=10e-5):
+def build_kernel(x, svd2ker, m=None, epsilon=10e-5):
     """
     Creates the transformation matrix of a dataset x using the given kernel
     function.
@@ -55,7 +55,8 @@ def build_kernel(x, svd2ker, epsilon=10e-5):
     logger.debug('x.shape = %s, n = %d, d = %d' % (str(shape), n, d))
 
     # subtract the mean value from the data
-    m = np.mean(x_flat, axis=0)
+    if m is None:
+        m = np.mean(x_flat, axis=0)
 
     x_flat = x_flat - m
     logger.debug('x.min = %0.2f, x.max = %0.2f, x.mean = %0.2f' % (np.min(x_flat), np.max(x_flat), np.mean(m)))
@@ -77,22 +78,22 @@ def build_kernel(x, svd2ker, epsilon=10e-5):
     return w
 
 
-def zca(x, shape=None, epsilon=10e-5):
+def zca(x, shape=None, m=None, epsilon=10e-5):
     """
     :param epsilon: whitening constant, it prevents division by zero
     """
     if shape is not None:
         x = x.reshape(shape)
-    return build_kernel(x, svd2zca, epsilon)
+    return build_kernel(x, svd2zca, m=m, epsilon=epsilon)
 
 
-def pca(x, shape=None, epsilon=10e-5):
+def pca(x, shape=None, m=None, epsilon=10e-5):
     """
     :param epsilon: whitening constant, it prevents division by zero
     """
     if shape is not None:
         x = x.reshape(shape)
-    return build_kernel(x, svd2pca, epsilon)
+    return build_kernel(x, svd2pca, m=m, epsilon=epsilon)
 
 
 def transform(x, m=None, w=None, func=zca, epsilon=10e-5, reshape='first', load_filepath=None, save_filepath=None):

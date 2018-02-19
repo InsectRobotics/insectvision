@@ -24,14 +24,21 @@ if __name__ == "__main__":
     start_day = 21
     delta = timedelta(hours=1)
     mode = "normal"
+    fibonacci = False
+    tilting = True
 
-    fov_deg = 120
-    nb_lens = 176
+    fov_deg = 60
+    nb_lens = 60
     fov = np.deg2rad(fov_deg)
     mse, mse_lon, mse_lat = [], [], []
 
     md = '' if mode == 'normal' else mode + '-'
     name = "%sseville-F%03d-I%03d-O%03d-M%02d-D%04d" % (md, fov_deg, nb_lens, NB_EN, nb_months, delta.seconds)
+    wname = "%ssensor-L%03d-V%03d" % (md, nb_lens, np.rad2deg(np.deg2rad(fov)))
+    if fibonacci or nb_lenses >= 100:
+        wname += "-fibonacci"
+    if tilting:
+        wname += "-tilt"
     data = np.load(__datadir__ + "%s.npz" % name)
     dates = np.load(__datadir__ + "%sM%02d-D%04d.npz" % (md, nb_months, delta.seconds))['m']
 
@@ -54,11 +61,12 @@ if __name__ == "__main__":
 
     x, t = data['x'], data['t']
     t = np.array([decode_sun(t0) for t0 in t])
-    y = s.update_parameters(x=data['x'], t=data['t'])
-    mse.append(MSE(y, t))
-    mse_lon.append(MSE(y, t, theta=False))
-    mse_lat.append(MSE(y, t, phi=False))
-    print "MSE:", mse[-1], "MSE-longitude:", mse_lon[-1],  "MSE-latitude:", mse_lat[-1]
+    s.load_weights(name=wname)
+    # y = s.update_parameters(x=data['x'], t=data['t'])
+    # mse.append(MSE(y, t))
+    # mse_lon.append(MSE(y, t, theta=False))
+    # mse_lat.append(MSE(y, t, phi=False))
+    # print "MSE:", mse[-1], "MSE-longitude:", mse_lon[-1],  "MSE-latitude:", mse_lat[-1]
 
     sL = s.w_whitening.dot(s.w).T
     # plt.figure("whitening-weights", figsize=(10, 10))

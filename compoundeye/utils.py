@@ -36,7 +36,7 @@ def get_microvilli_angle(epsilon, alpha, theta=np.pi/6, phi=np.pi/18, n=.1):
     xyz = R_y.dot(R_z.dot(xyz))
 
     # calculate the orientation of each of the microvilli
-    angle = s * np.arctan2(xyz[1], xyz[0])  # type: np.ndarray
+    angle = (s * np.arctan2(xyz[1], xyz[0]) + 3 * np.pi/2) % (2 * np.pi) - np.pi  # type: np.ndarray
     noise = RNG.randn(angle.size) * np.square(xyz[2]) * np.maximum(n, 0.)
     dop = np.power(xyz[2], 4) + noise
     dop[xyz[2] < 0] = 0
