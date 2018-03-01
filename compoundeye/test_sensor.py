@@ -21,7 +21,7 @@ if __name__ == "__main__":
     noise = .0
     fibonacci = False
     wtilting = False
-    tilting = True
+    tilting = False
     nb_lenses = 60
     fov = 60
     kernel = zca
@@ -30,10 +30,12 @@ if __name__ == "__main__":
     start_month = 6
     start_day = 21
     delta = timedelta(hours=1)
-    # mode = "monthly"
-    mode = "monthly-scatter"
+    mode = "monthly"
+    # mode = "monthly-scatter"
     # mode = "hourly"
     # mode = "tilts"
+    # mode = "lon"
+    # mode = "lat"
     # mode = 6
 
     s = CompassSensor(nb_lenses=nb_lenses, fov=np.deg2rad(fov), kernel=kernel, mode=md, fibonacci=fibonacci)
@@ -98,8 +100,11 @@ if __name__ == "__main__":
     if isinstance(mode, basestring) and mode == "monthly-scatter":
         import calendar
 
-        pi = 0.
-        ro = np.pi/6
+        if tilting:
+            pi = 0.
+            ro = np.pi/6
+        else:
+            pi = ro = 0.
 
         def isvalid(date, j, pitch, roll):
             return date.month == j+1 and 10 <= date.hour <= 11 and np.isclose(pitch, pi) and np.isclose(roll, ro)
@@ -134,7 +139,7 @@ if __name__ == "__main__":
         if tilting:
             ylim = 90
         else:
-            ylim = 20
+            ylim = 11
 
         for j in xrange(12):
             i = np.array([True if date[0].month == j+1 else False for ii, date in enumerate(dates)])
@@ -172,18 +177,18 @@ if __name__ == "__main__":
         std_y = np.array(std_y)[i]
         std_y_lon = np.array(std_y_lon)[i]
         std_y_lat = np.array(std_y_lat)[i]
-        scale = 3.
+        scale = 1.
 
         # plt.subplot(131)
         plt.fill_between(std_x, mse_y - scale * std_y, mse_y + scale * std_y,
-                         facecolor="#3F5D7D", alpha=.5)
-        plt.plot(mse_x, mse_y, label="MSE")
+                         facecolor="C0", alpha=.5)
+        plt.plot(mse_x, mse_y, color="C0", label="MSE")
         plt.fill_between(std_x, mse_y_lon - scale * std_y_lon, mse_y_lon + scale * std_y_lon,
-                         facecolor="#7D3F5D", alpha=.5)
-        plt.plot(mse_x, mse_y_lon, label="MSE-lon")
+                         facecolor="C1", alpha=.5)
+        plt.plot(mse_x, mse_y_lon, color="C1", label="MSE-lon")
         plt.fill_between(std_x, mse_y_lat - scale * std_y_lat, mse_y_lat + scale * std_y_lat,
-                         facecolor="#3F7D5D", alpha=.5)
-        plt.plot(mse_x, mse_y_lat, label="MSE-lat")
+                         facecolor="C2", alpha=.5)
+        plt.plot(mse_x, mse_y_lat, color="C2", label="MSE-lat")
         plt.legend()
         plt.xlim([1, 12])
         plt.xticks(np.arange(1, 12))
@@ -193,10 +198,13 @@ if __name__ == "__main__":
         plt.title("Monthly")
     elif isinstance(mode, int):
 
-        pi = 0.
-        ro = np.pi/6
+        if tilting:
+            pi = 0.
+            ro = np.pi/6
+        else:
+            pi = ro = 0.
 
-        def isvalid(date, j, pitch, roll):
+        def isvalid(date, pitch, roll):
             return date.month == mode and np.isclose(pitch, pi) and np.isclose(roll, ro)
 
 
@@ -290,8 +298,8 @@ if __name__ == "__main__":
         plt.title("December")
     elif isinstance(mode, basestring) and mode == "tilts" and tilting:
         plt.figure("tilting-mse", figsize=(15, 5))
-        ylim = 90
-        scale = 3.
+        ylim = 180
+        scale = 1.
 
         mse_x, mse_y, mse_y_lon, mse_y_lat = [], [], [], []
         std_x, std_y, std_y_lon, std_y_lat = [], [], [], []
@@ -327,20 +335,131 @@ if __name__ == "__main__":
         std_y_lat = np.array(std_y_lat)
 
         plt.subplot(111)
-        plt.fill_between(std_x, mse_y - scale * std_y, mse_y + scale * std_y,
-                         facecolor="#3F5D7D", alpha=.5)
-        plt.plot(mse_x, mse_y, label="MSE")
+        # plt.fill_between(std_x, mse_y - scale * std_y, mse_y + scale * std_y,
+        #                  facecolor="C0", alpha=.5)
+        # plt.plot(mse_x, mse_y, color="C0", label="MSE")
         plt.fill_between(std_x, mse_y_lon - scale * std_y_lon, mse_y_lon + scale * std_y_lon,
-                         facecolor="#7D3F5D", alpha=.5)
-        plt.plot(mse_x, mse_y_lon, label="MSE-lon")
-        plt.fill_between(std_x, mse_y_lat - scale * std_y_lat, mse_y_lat + scale * std_y_lat,
-                         facecolor="#3F7D5D", alpha=.5)
-        plt.plot(mse_x, mse_y_lat, label="MSE-lat")
-        plt.legend()
+                         facecolor="C1", alpha=.5)
+        plt.plot(mse_x, mse_y_lon, color="C1", label="MSE-lon")
+        # plt.fill_between(std_x, mse_y_lat - scale * std_y_lat, mse_y_lat + scale * std_y_lat,
+        #                  facecolor="C2", alpha=.5)
+        # plt.plot(mse_x, mse_y_lat, color="C2", label="MSE-lat")
+        # plt.legend()
         plt.xlim([mse_x.min(), mse_x.max()])
         plt.ylim([0, ylim])
         plt.xticks(mse_x)
         plt.xlabel("Tilting (degrees)")
+        plt.ylabel("MSE (degrees)")
+    elif isinstance(mode, basestring) and mode == "lon":
+        plt.figure("sun-lon-mse", figsize=(15, 5))
+        ylim = 180
+        scale = 1.
+
+        mse_x, mse_y, mse_y_lon, mse_y_lat = [], [], [], []
+        std_x, std_y, std_y_lon, std_y_lat = [], [], [], []
+        if tilting:
+            angles = np.linspace(0, 2*np.pi, 360, endpoint=False)
+        else:
+            angles = np.linspace(0, np.pi, 180, endpoint=False)
+        for angle in angles:
+            if np.rad2deg(angle) in mse_x:
+                continue
+
+            j = np.array([phi - np.pi/360. < angle <= phi + np.pi/360. for phi in r[:, 3]])
+            if j.sum() == 0:
+                continue
+            yj = y[j]
+            tj = t[j]
+
+            mse_x.append(np.rad2deg(angle))
+            std_x.append(np.rad2deg(angle))
+            mse_y.append(mse(yj, tj))
+            mse_y_lon.append(mse(yj, tj, theta=False))
+            mse_y_lat.append(mse(yj, tj, phi=False))
+            std_y.append(std(yj, tj) / np.sqrt(yj.shape[0]))
+            std_y_lon.append(std(yj, tj, theta=False) / np.sqrt(yj.shape[0]))
+            std_y_lat.append(std(yj, tj, phi=False) / np.sqrt(yj.shape[0]))
+
+        mse_x = np.array(mse_x)
+        mse_y = np.array(mse_y)
+        mse_y_lon = np.array(mse_y_lon)
+        mse_y_lat = np.array(mse_y_lat)
+        std_x = np.array(std_x)
+        std_y = np.array(std_y)
+        std_y_lon = np.array(std_y_lon)
+        std_y_lat = np.array(std_y_lat)
+
+        plt.subplot(111)
+        plt.fill_between(std_x, mse_y - scale * std_y, mse_y + scale * std_y,
+                         facecolor="C0", alpha=.5)
+        plt.plot(mse_x, mse_y, color="C0", label="MSE")
+        plt.fill_between(std_x, mse_y_lon - scale * std_y_lon, mse_y_lon + scale * std_y_lon,
+                         facecolor="C1", alpha=.5)
+        plt.plot(mse_x, mse_y_lon, color="C1", label="MSE-lon")
+        plt.fill_between(std_x, mse_y_lat - scale * std_y_lat, mse_y_lat + scale * std_y_lat,
+                         facecolor="C2", alpha=.5)
+        plt.plot(mse_x, mse_y_lat, color="C2", label="MSE-lat")
+        plt.legend()
+        plt.xlim([mse_x.min(), mse_x.max()])
+        plt.ylim([0, ylim])
+        # plt.xticks(mse_x)
+        plt.xlabel("Sun longitude (degrees)")
+        plt.ylabel("MSE (degrees)")
+    elif isinstance(mode, basestring) and mode == "lat":
+        plt.figure("sun-lat-mse", figsize=(15, 5))
+        ylim = 180
+        scale = 1.
+
+        mse_x, mse_y, mse_y_lon, mse_y_lat = [], [], [], []
+        std_x, std_y, std_y_lon, std_y_lat = [], [], [], []
+        if tilting:
+            angles = np.linspace(0, np.pi, 180, endpoint=False)
+        else:
+            angles = np.linspace(0, np.pi/2, 90, endpoint=False)
+        for angle in angles:
+            if np.rad2deg(angle) in mse_x:
+                continue
+
+            j = np.array([phi - np.pi/360. < angle <= phi + np.pi/360. for phi in r[:, 4]])
+            if j.sum() == 0:
+                continue
+
+            yj = y[j]
+            tj = t[j]
+
+            mse_x.append(np.rad2deg(angle))
+            std_x.append(np.rad2deg(angle))
+            mse_y.append(mse(yj, tj))
+            mse_y_lon.append(mse(yj, tj, theta=False))
+            mse_y_lat.append(mse(yj, tj, phi=False))
+            std_y.append(std(yj, tj) / np.sqrt(yj.shape[0]))
+            std_y_lon.append(std(yj, tj, theta=False) / np.sqrt(yj.shape[0]))
+            std_y_lat.append(std(yj, tj, phi=False) / np.sqrt(yj.shape[0]))
+
+        mse_x = np.array(mse_x)
+        mse_y = np.array(mse_y)
+        mse_y_lon = np.array(mse_y_lon)
+        mse_y_lat = np.array(mse_y_lat)
+        std_x = np.array(std_x)
+        std_y = np.array(std_y)
+        std_y_lon = np.array(std_y_lon)
+        std_y_lat = np.array(std_y_lat)
+
+        plt.subplot(111)
+        plt.fill_between(std_x, mse_y - scale * std_y, mse_y + scale * std_y,
+                         facecolor="C0", alpha=.5)
+        plt.plot(mse_x, mse_y, color="C0", label="MSE")
+        plt.fill_between(std_x, mse_y_lon - scale * std_y_lon, mse_y_lon + scale * std_y_lon,
+                         facecolor="C1", alpha=.5)
+        plt.plot(mse_x, mse_y_lon, color="C1", label="MSE-lon")
+        plt.fill_between(std_x, mse_y_lat - scale * std_y_lat, mse_y_lat + scale * std_y_lat,
+                         facecolor="C2", alpha=.5)
+        plt.plot(mse_x, mse_y_lat, color="C2", label="MSE-lat")
+        plt.legend()
+        plt.xlim([mse_x.min(), mse_x.max()])
+        plt.ylim([0, ylim])
+        # plt.xticks(mse_x)
+        plt.xlabel("Sun latitude (degrees)")
         plt.ylabel("MSE (degrees)")
 
     plt.show()
