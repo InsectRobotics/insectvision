@@ -19,8 +19,15 @@ DEBUG = False
 
 class CompassSensor(CompoundEye):
 
-    def __init__(self, nb_lenses=60, fov=np.deg2rad(60), kernel=None, mode="cross", fibonacci=False):
+    def __init__(self, nb_lenses=60, fov=np.deg2rad(60), thetas=None, phis=None, alphas=None, kernel=None, mode="cross", fibonacci=False):
 
+        if thetas is not None:
+            nb_lenses = len(thetas)
+            fov = thetas.max()
+        if phis is not None:
+            nb_lenses = len(phis)
+        if alphas is not None:
+            nb_lenses = len(alphas)
         self.nb_lenses = nb_lenses
         self.fov = fov
 
@@ -51,21 +58,24 @@ class CompassSensor(CompoundEye):
             print "Sensor height (h):             %.2f mm" % self.height
             print "Surface coverage:              %.2f" % self.coverage
 
-        try:
-            thetas, phis, fit = angles_distribution(nb_lenses, np.rad2deg(fov))
-        except ValueError:
-            thetas = np.empty(0, dtype=np.float32)
-            phis = np.empty(0, dtype=np.float32)
-            fit = False
-        self.fibonacci = False
-        if fibonacci or not fit or nb_lenses > 100:
-            thetas, phis = fibonacci_sphere(nb_lenses, np.rad2deg(fov))
-            self.fibonacci = True
+        if thetas is None or phis is None:
+            try:
+                thetas, phis, fit = angles_distribution(nb_lenses, np.rad2deg(fov))
+            except ValueError:
+                thetas = np.empty(0, dtype=np.float32)
+                phis = np.empty(0, dtype=np.float32)
+                fit = False
+            self.fibonacci = False
+            if fibonacci or not fit or nb_lenses > 100:
+                thetas, phis = fibonacci_sphere(nb_lenses, np.rad2deg(fov))
+                self.fibonacci = True
         thetas = (thetas - np.pi) % (2 * np.pi) - np.pi
         phis = (phis + np.pi) % (2 * np.pi) - np.pi
+        if alphas is None:
+            alphas = (phis + 3*np.pi/2) % (2 * np.pi) - np.pi
 
         super(CompassSensor, self).__init__(
-            ommatidia=np.array([thetas.flatten(), phis.flatten()]).T,
+            ommatidia=np.array([thetas.flatten(), phis.flatten(), alphas.flatten()]).T,
             central_microvili=(0, 0),
             noise_factor=.0,
             activate_dop_sensitivity=False)
@@ -123,7 +133,7 @@ class CompassSensor(CompoundEye):
             # d = np.sqrt(np.square(s) + np.square(c))
             m = np.any([np.isnan(z), np.isclose(z, 0.)], axis=0)
             # x[~m] = 2 * d[~m] / z + .5
-            x[~m] = (uv / z)[~m]
+            x[~m] = ((uv - b) / z)[~m]
             # x[np.isnan(x)] = 0.
             return x
             # return np.clip((x - x[x > 0].min()) / (x.max() - x[x > 0].min()), 0, 1)
@@ -404,7 +414,12 @@ class CompassSensor(CompoundEye):
             lens.set_clip_box(ax_t.bbox)
             lens.set_facecolor(get_colour(np.asscalar(L)))
         if show_sun:
-            ax_t.plot(xyz_sun[0], xyz_sun[1], 'ro', markersize=22)
+            ax_t.plot(xyz_sun[0], xyz_sun[1],
+                      marker='o',
+                      fillstyle='full',
+                      markeredgecolor='black',
+                      markerfacecolor='yellow',
+                      markersize=10)
 
         ax_t.set_xlim(-sensor.R_c - 2, sensor.R_c + 2)
         ax_t.set_ylim(-sensor.R_c - 2, sensor.R_c + 2)
@@ -559,6 +574,32 @@ class CompassSensor(CompoundEye):
         else:
             plt.show()
 
+    @classmethod
+    def visualise_structure(cls, sensor):
+        """
+
+        :param sensor:
+        :type sensor: CompassSensor
+        :return:
+        """
+
+        import matplotlib.pyplot as plt
+
+        xyz = sph2vec(np.pi / 2 - sensor.theta_local, np.pi + sensor.phi_local, sensor.R_c)
+        xyz[0] *= -1
+
+        plt.figure("Sensor Structure")
+        plt.subplot(111, aspect="equal")
+        for angle, x, y in zip(sensor._aop_filter, xyz[0], xyz[1]):
+            plt.plot(x, y, marker="o", color="white", markeredgecolor="black", markersize=10)
+            plt.plot(x, y, marker=(2, 0, np.rad2deg(angle)), color="red", markersize=10)
+            plt.plot(x, y, marker=(1, 2, np.rad2deg(angle-np.pi/2)), color="red", markersize=10)
+
+        plt.axis("off")
+        plt.tight_layout()
+
+        plt.show()
+
 
 def encode_sun(lon, lat):
     return encode_sph(lat, lon, length=NB_EN)
@@ -617,16 +658,18 @@ if __name__ == "__main__":
     tilting = False
     step = 45
     # modes: "normal", "cross", "event"
-    s = CompassSensor(fov=np.deg2rad(60), nb_lenses=3000, mode="cross", fibonacci=False)
+    s = CompassSensor(fov=np.deg2rad(60), nb_lenses=60, mode="cross", fibonacci=False)
     # s.activate_pol_filters(False)
     # s.load_weights()
 
     # default observer is in Seville (where the data come from)
     observer = get_seville_observer()
-    observer.date = datetime(2018, 6, 21, 12, 0, 0)
+    observer.date = datetime(2018, 6, 21, 9, 0, 0)
 
     s.sky.obs = observer
     # s.rotate(pitch=np.pi / 2)
+
+    # CompassSensor.visualise_structure(s)
 
     for i, angle in enumerate(np.linspace(0, 2 * np.pi, 13, endpoint=True)):
         s.refresh()
@@ -645,10 +688,11 @@ if __name__ == "__main__":
         # sL = .5 * np.cos(d) + .5
         # sL = np.sqrt((np.square(np.cos(d) * s.sky.L / 14) + np.square(np.sin(d + np.pi/2) * s.sky.L / 14)))
         # sL = s.sky.L / 14
+        sL = (s.L - .5) * 20 + .5
         print sL.min(), sL.max()
         CompassSensor.visualise(s, sL=sL, colormap="coolwarm",
                                 title="%s-sensor_design_%03d_%03d" % (s.mode, np.rad2deg(s.fov), s.nb_lenses),
-                                show_sun=True, sides=False, interactive=False, scale=[0, 1])
+                                show_sun=True, sides=False, interactive=False, scale=[-.05, .05])
         s.rotate(yaw=np.pi/6)
         # observer.date = datetime(2018, 6, 21, 8 + i, 0, 0)
         # s.sky.obs = observer

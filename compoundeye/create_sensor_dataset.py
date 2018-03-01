@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     # parameters
     mode = 'cross'
-    fibonacci = True
+    fibonacci = False
     tilting = False
     nb_lenses = 60
     fov = 60

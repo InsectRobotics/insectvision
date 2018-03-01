@@ -21,7 +21,7 @@ if __name__ == "__main__":
     start_month = 6
     start_day = 21
     delta = timedelta(hours=1)
-    mode = "normal"
+    mode = "cross"
     fov_deg = 60
     fov = np.deg2rad(fov_deg)
     generate_weights = True
@@ -44,7 +44,7 @@ if __name__ == "__main__":
         x, t = data['x'], data['t']
         t = np.array([decode_sun(t0) for t0 in t])
         if generate_weights:
-            y = s.update_parameters(x=data['x'], t=data['t'])
+            y = s.update_parameters(x=data['x'])  # , t=data['t'])
             s.save_weights()
         else:
             s.load_weights()
@@ -52,7 +52,7 @@ if __name__ == "__main__":
         mse.append(MSE(y, t))
         mse_lon.append(MSE(y, t, theta=False))
         mse_lat.append(MSE(y, t, phi=False))
-        print "MSE:", mse[-1], "MSE-longitude:", mse_lon[-1],  "MSE-latitude:", mse_lat[-1]
+        print nb_lens, "MSE:", mse[-1], "MSE-longitude:", mse_lon[-1],  "MSE-latitude:", mse_lat[-1]
 
     plt.subplot(121)
     plt.plot(nb_lenses, mse, label="MSE")
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         x, t = data['x'], data['t']
         t = np.array([decode_sun(t0) for t0 in t])
         if generate_weights:
-            y = s.update_parameters(x=data['x'], t=data['t'])
+            y = s.update_parameters(x=data['x'])  # , t=data['t'])
             s.save_weights()
         else:
             s.load_weights()
@@ -94,7 +94,7 @@ if __name__ == "__main__":
         mse_lon.append(MSE(y, t, theta=False))
         mse_lat.append(MSE(y, t, phi=False))
         fovs_.append(fov_deg_)
-        print "MSE:", mse[-1], "MSE-longitude:", mse_lon[-1],  "MSE-latitude:", mse_lat[-1]
+        print fov_deg, nb_lens, "MSE:", mse[-1], "MSE-longitude:", mse_lon[-1],  "MSE-latitude:", mse_lat[-1]
 
     plt.subplot(122)
     plt.plot(fovs_, mse, label="MSE")

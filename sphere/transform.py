@@ -2,12 +2,13 @@ import numpy as np
 import numpy.linalg as la
 
 
-def sph2vec(theta, phi=None, rho=1.):
+def sph2vec(theta, phi=None, rho=1., zenith=False):
     """
     Transforms the spherical coordinates to a cartesian 3D vector.
-    :param theta: elevation
-    :param phi:   azimuth
-    :param rho:   radius length
+    :param theta:   elevation
+    :param phi:     azimuth
+    :param rho:     radius length
+    :param zenith:  whether the elevation is zethith centric or not
     :return vec:    the cartessian vector
     """
     if phi is None:
@@ -16,36 +17,40 @@ def sph2vec(theta, phi=None, rho=1.):
             rho = theta[2]
         theta = theta[0]
 
-    x = rho * (np.sin(phi) * np.cos(theta))
-    y = rho * (np.cos(phi) * np.cos(theta))
+    if not zenith:
+        theta = np.pi/2 - theta
+
+    x = rho * np.sin(theta) * np.sin(phi)
+    y = rho * np.sin(theta) * np.cos(phi)
     z = rho * np.sin(theta)
 
     return np.asarray([x, y, z])
 
 
-def vec2sph(vec):
+def vec2sph(vec, y=None, z=None, zenith=False):
     """
-    Transforms a cartessian vector to spherical coordinates.
-    :param vec:     the cartessian vector
+    Transforms a cartesian vector to spherical coordinates.
+    :param vec:     the cartesian vector
     :return theta_z:  elevation
     :return phi_z:    azimuth
     :return rho:    radius
     """
     rho = la.norm(vec, axis=0)  # length of the radius
-
-    if vec.ndim == 1:
-        if rho == 0:
-            rho = 1.
-        v = vec / rho  # normalised vector
-        phi = np.arctan2(v[0], v[1])  # azimuth
-        theta = np.pi / 2 - np.arccos(v[2])  # elevation
-    else:
+    if vec.ndim == 1 and rho == 0:
+        rho = 1.
+    elif vec.ndim > 1:
         rho[rho == 0] = 1.
-        v = vec / rho  # normalised vector
-        phi = np.arctan2(v[0], v[1])  # azimuth
-        theta = np.pi / 2 - np.arccos(v[2])  # elevation
+    x = vec / rho  # normalised vector
 
-    theta, phi = sphadj(theta, phi)  # bound the spherical coordinates
+    if y is None or z is None:
+        assert x.shape[0] == 3
+        x, y, z = x
+
+    theta = np.arccos(z)
+    phi = np.arctan2(y, x)
+
+    if not zenith:
+        theta = np.pi/2 - theta
     return np.asarray([theta, phi, rho])
 
 
