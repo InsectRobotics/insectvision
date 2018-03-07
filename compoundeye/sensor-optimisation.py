@@ -1,12 +1,6 @@
 import numpy as np
 from geometry import fibonacci_sphere
 from sphere import angdist, eledist, azidist
-from datetime import datetime
-import os
-
-__dir__ = os.path.dirname(os.path.realpath(__file__)) + "/"
-__datadir__ = __dir__ + "../data/opt/"
-
 
 # Transformation matrix of turbidity to luminance coefficients
 T_L = np.array([[0.1787, -1.4630],
@@ -61,6 +55,9 @@ class SensorFunction(object):
             ele, azi = SensorFunction.decode(dop, aop, alpha, w=w)
             d[i] = np.absolute(error(np.array([e, a]), np.array([ele, azi])))
         return np.rad2deg(d.mean())
+
+    def gradient(self, x):
+        return pg.estimate_gradient_h(self.fitness, x)
 
     def get_bounds(self):
         return list(self.lb), list(self.ub)
@@ -201,34 +198,61 @@ def point2rotmat(p):
     return np.eye(3) + v_x + np.matmul(v_x, v_x) / (1 + c)
 
 
+# single
 if __name__ == "__main__":
+
+    from sensor import CompassSensor
+    from learn.optimisation import optimise
+
+    algo_name = "cmaes"
+    x, f, log = optimise(SensorFunction(), algo_name)
+
+    print "CHAMP x:", x
+    print "CHAMP f:", f
+
+    thetas, phis, alphas, w = SensorFunction.devectorise(x)
+
+    s = CompassSensor(thetas=thetas, phis=phis, alphas=alphas)
+    s.visualise_structure(s, title="%s-struct" % algo_name)
+
+
+# archipelago
+if __name__ == "__main_2__":
     import pygmo as pg
 
+    # Initialise the problem
     sf = SensorFunction()
+    prob = pg.problem(sf)
 
+    # Initialise the random seed
     pg.set_global_rng_seed(2018)
 
-    algo = pg.algorithm(pg.sea(1000))
-    algo.set_verbosity(50)
+    # Initialise the algorithms
+    sa = pg.algorithm(pg.simulated_annealing(Ts=1., Tf=.01, n_T_adj=1000))
 
-    prob = pg.problem(sf)
-    pop = pg.population(prob, size=20)
-    # pop.push_back(sf.x_init)
+    de = pg.algorithm(pg.de(gen=10000, F=.8, CR=.9))
 
-    print "POP (len):", len(pop.get_x())
-    pop = algo.evolve(pop)
-    uda = algo.extract(pg.sea)
-    print "UDA", uda.get_log()
+    # local = pg.algorithm(pg.nlopt("cobyla"))
 
-    x = np.array(pop.champion_x)
-    f = np.array(pop.champion_f)
-    # print "CHAMP X:", pop.champion_x
-    # print "CHAMP F:", pop.champion_f
+    # Initialise archipelago
+    archi = pg.archipelago(n=10, udi=pg.thread_island(), algo=sa, prob=prob, pop_size=100)
+    archi.push_back(algo=de, prob=prob, size=100, udi=pg.thread_island())
+    archi.push_back(algo=sa, prob=prob, size=100, udi=pg.thread_island())
+    archi.push_back(algo=de, prob=prob, size=100, udi=pg.thread_island())
+    archi.push_back(algo=sa, prob=prob, size=100, udi=pg.thread_island())
 
-    name = "%s-%s-%.2f" % (datetime.now().strftime("%Y%m%d"), algo.get_name(), f)
-    np.savez_compressed(__datadir__ + "%s.npz" % name, x=x, f=f)
+    archi.evolve(100)
 
-    thetas, phis, alphas, w = SensorFunction.devectorise(pop.champion_x)
+    print archi
+
+    archi.wait_check()
+
+    x = archi.get_champions_x()
+    f = archi.get_champions_f()
+    print "CHAMP X:", x[np.argmin(f)]
+    print "CHAMP F:", f.min()
+
+    thetas, phis, alphas, w = SensorFunction.devectorise(x[np.argmin(f)])
 
     from sensor import CompassSensor
 

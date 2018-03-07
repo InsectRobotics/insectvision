@@ -575,7 +575,7 @@ class CompassSensor(CompoundEye):
             plt.show()
 
     @classmethod
-    def visualise_structure(cls, sensor):
+    def visualise_structure(cls, sensor, title="Sensor Structure"):
         """
 
         :param sensor:
@@ -588,7 +588,7 @@ class CompassSensor(CompoundEye):
         xyz = sph2vec(np.pi / 2 - sensor.theta_local, np.pi + sensor.phi_local, sensor.R_c)
         xyz[0] *= -1
 
-        plt.figure("Sensor Structure")
+        plt.figure(title)
         plt.subplot(111, aspect="equal")
         for angle, x, y in zip(sensor._aop_filter, xyz[0], xyz[1]):
             plt.plot(x, y, marker="o", color="white", markeredgecolor="black", markersize=10)
