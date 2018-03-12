@@ -204,7 +204,7 @@ if __name__ == "__main__":
     from sensor import CompassSensor
     from learn.optimisation import optimise
 
-    algo_name = "cmaes"
+    algo_name = "abc"
     x, f, log = optimise(SensorFunction(), algo_name)
 
     print "CHAMP x:", x

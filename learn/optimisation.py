@@ -79,12 +79,12 @@ algorithms = {
     ),
     # Coranas's Simulated Annealing (SA)
     "sa": pg.simulated_annealing(
-        Ts=10.,          # starting temperature
+        Ts=.01,          # starting temperature
         Tf=1e-05,        # final temperature
         n_T_adj=10,      # number of temperature adjustments in the annealing schedule
         n_range_adj=10,  # number of adjustments of the search range performed at a constant temperature
         bin_size=10,     # number of mutations that are used to compute the acceptance rate
-        start_range=1.   # starting range for mutating the decision vector
+        start_range=.5   # starting range for mutating the decision vector
     ),
     # Artificial Bee Colony (ABC)
     "abc": pg.bee_colony(
@@ -212,21 +212,17 @@ def optimise(func, algo_name="sga", population=100, verbosity=100, plot=True, sa
     print a.get_name()
 
     pop = a.evolve(pop)
-    log = a.extract(pg.simulated_annealing).get_log()
+    log = a.extract(algorithms[algo_name].__class__).get_log()
 
     f = pop.champion_f
 
     name = "%s-%s-%.2f" % (datetime.now().strftime("%Y%m%d"), algo_name, f)
 
+    print log
+    log = np.array(log)
+    print log
     if plot:
-        from matplotlib import pyplot as plt
-
-        plt.figure(name)
-        plt.semilogy([line[0] for line in log], [line[1] for line in log], label="obj")
-        plt.semilogy([line[0] for line in log], [line[3] for line in log], label="con")
-        plt.xlabel("objevals")
-        plt.ylabel("value")
-        plt.show()
+        plot_log(log, title=name)
 
     x = pop.champion_x
 
@@ -234,3 +230,42 @@ def optimise(func, algo_name="sga", population=100, verbosity=100, plot=True, sa
         np.savez_compressed(__datadir__ + "%s.npz" % name, x=x, f=f, log=log)
 
     return x, f, log
+
+
+def plot_log(log, title="Log"):
+    from matplotlib import pyplot as plt
+
+    plt.figure(title)
+    plt.plot(log[:, 0], log[:, 2], label="objective")
+    plt.plot(log[:, 0], log[:, 3], label="convergence")
+    plt.legend()
+    plt.xlabel("objevals")
+    plt.ylabel("value")
+    plt.show()
+
+
+algo_logs = {
+    "de": ["gen", "feval", "best", "dx", "df"],
+    "sade": ["gen", "feval", "best", "F", "CR", "dx", "df"],
+    "de1220": ["gen", "feval", "best", "F", "CR", "variant", "dx", "df"],
+    "sa": ["fevals", "best", "current", "mean range", "temperature"],
+    "sea": ["gen", "fevals", "best", "improvement", "mutations"],
+    "sga": ["gen", "fevals", "best", "improvement"],
+    "cmaes": ["gen", "fevals", "best", "dx", "df", "sigma"],
+    "pso": ["gen", "feval", "gbest", "mean vel.", "mean lbest", "avg. dist."],
+    "abc": ["gen", "feval", "best", "current best"]
+}
+
+
+if __name__ == "__main__":
+    algorithm = "sea"
+    date = "20180308"
+    f = 0.55
+
+    name = "%s-%s-%.2f" % (date, algorithm, f)
+    data = np.load(__datadir__ + "%s.npz" % name)
+
+    log = data["log"]
+    print log
+
+    plot_log(log, title=name)
