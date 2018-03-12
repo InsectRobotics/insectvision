@@ -585,20 +585,28 @@ class CompassSensor(CompoundEye):
 
         import matplotlib.pyplot as plt
 
-        xyz = sph2vec(np.pi / 2 - sensor.theta_local, np.pi + sensor.phi_local, sensor.R_c)
-        xyz[0] *= -1
+        xyz = sph2vec(sensor.theta_local, np.pi + sensor.phi_local, sensor.R_c, zenith=True)
+        xyz[0] *= -1.
 
         plt.figure(title)
-        plt.subplot(111, aspect="equal")
-        for angle, x, y in zip(sensor._aop_filter, xyz[0], xyz[1]):
-            plt.plot(x, y, marker="o", color="white", markeredgecolor="black", markersize=10)
-            plt.plot(x, y, marker=(2, 0, np.rad2deg(angle)), color="red", markersize=10)
-            plt.plot(x, y, marker=(1, 2, np.rad2deg(angle-np.pi/2)), color="red", markersize=10)
+        ax = plt.subplot(111, aspect="equal")
+        for angle, x, y in zip(sensor._aop_filter[xyz[2] < 0], xyz[0][xyz[2] < 0], xyz[1][xyz[2] < 0]):
+            ax.plot(x, y, marker="o", color="white", markeredgecolor="black", markersize=10 * sensor.r_l)
+            ax.plot(x, y, marker=(2, 0, np.rad2deg(angle)), color="red", markersize=10 * sensor.r_l)
+            ax.plot(x, y, marker=(1, 2, np.rad2deg(angle-np.pi/2)), color="red", markersize=10 * sensor.r_l)
+        ax.plot(0, 0, marker="o", color="#00000060", markeredgecolor="grey", markersize=10*sensor.R_c)
+        for angle, x, y in zip(sensor._aop_filter[xyz[2] >= 0], xyz[0][xyz[2] >= 0], xyz[1][xyz[2] >= 0]):
+            ax.plot(x, y, marker="o", color="white", markeredgecolor="black", markersize=10 * sensor.r_l)
+            ax.plot(x, y, marker=(2, 0, np.rad2deg(angle)), color="red", markersize=10 * sensor.r_l)
+            ax.plot(x, y, marker=(1, 2, np.rad2deg(angle-np.pi/2)), color="red", markersize=10 * sensor.r_l)
 
+        ax.set_xlim([-sensor.R_c-sensor.r_l, sensor.R_c+sensor.r_l])
+        ax.set_ylim([-sensor.R_c-sensor.r_l, sensor.R_c+sensor.r_l])
         plt.axis("off")
         plt.tight_layout()
 
-        plt.show()
+        # plt.show()
+        return ax
 
 
 def encode_sun(lon, lat):

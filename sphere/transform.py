@@ -2,14 +2,24 @@ import numpy as np
 import numpy.linalg as la
 
 
+def point2rotmat(p):
+    z = np.array([0., 0., 1.])
+    v = np.cross(z, p)
+    c = np.dot(z, p)
+    v_x = np.array([[0., -v[2], v[1]],
+                    [v[2], 0., -v[0]],
+                    [-v[1], v[0], 0.]])
+    return np.eye(3) + v_x + np.matmul(v_x, v_x) / (1 + c)
+
+
 def sph2vec(theta, phi=None, rho=1., zenith=False):
     """
     Transforms the spherical coordinates to a cartesian 3D vector.
-    :param theta:   elevation
-    :param phi:     azimuth
-    :param rho:     radius length
-    :param zenith:  whether the elevation is zethith centric or not
-    :return vec:    the cartessian vector
+    :param theta:  elevation
+    :param phi:    azimuth
+    :param rho:    radius length
+    :param zenith: whether zenith is the 0 elevation point other than 90 deg elevation point
+    :return:       the cartesian vector
     """
     if phi is None:
         phi = theta[1]
@@ -22,7 +32,7 @@ def sph2vec(theta, phi=None, rho=1., zenith=False):
 
     x = rho * np.sin(theta) * np.sin(phi)
     y = rho * np.sin(theta) * np.cos(phi)
-    z = rho * np.sin(theta)
+    z = rho * np.cos(theta)
 
     return np.asarray([x, y, z])
 
@@ -30,24 +40,30 @@ def sph2vec(theta, phi=None, rho=1., zenith=False):
 def vec2sph(vec, y=None, z=None, zenith=False):
     """
     Transforms a cartesian vector to spherical coordinates.
-    :param vec:     the cartesian vector
-    :return theta_z:  elevation
-    :return phi_z:    azimuth
-    :return rho:    radius
+    :param vec:    the cartesian vector
+    :param y:      the y component of the cartesian vector (in case vec is the x component)
+    :param z:      the z component of the cartesian vector (in case vec is the x component)
+    :param zenith: whether zenith is the 0 elevation point other than 90 deg elevation point
+    :return:       the spherical coordinates
     """
-    rho = la.norm(vec, axis=0)  # length of the radius
+
+    if y is None or z is None:
+        assert vec.shape[0] == 3
+        x, y, z = vec
+    else:
+        x = vec
+    vec = np.array([x, y, z])
+
+    rho = np.sqrt(np.square(x) + np.square(y) + np.square(z))
+    # rho = la.norm(vec, axis=0)  # length of the radius
     if vec.ndim == 1 and rho == 0:
         rho = 1.
     elif vec.ndim > 1:
         rho[rho == 0] = 1.
-    x = vec / rho  # normalised vector
-
-    if y is None or z is None:
-        assert x.shape[0] == 3
-        x, y, z = x
+    x, y, z = vec / rho  # normalised vector
 
     theta = np.arccos(z)
-    phi = np.arctan2(y, x)
+    phi = np.arctan2(x, y)
 
     if not zenith:
         theta = np.pi/2 - theta

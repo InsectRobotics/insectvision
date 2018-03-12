@@ -2,7 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../compmodels/.idea/compmodels.iml" filepath="$PROJECT_DIR$/../compmodels/.idea/compmodels.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/insectvision.iml" filepath="$PROJECT_DIR$/.idea/insectvision.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../skylight/.idea/skylight.iml" filepath="$PROJECT_DIR$/../skylight/.idea/skylight.iml" />
     </modules>
   </component>
 </project>

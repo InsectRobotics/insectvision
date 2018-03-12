@@ -2,7 +2,7 @@ import numpy as np
 import healpy as hp
 
 
-LENS_RADIUS = 1  # mm
+LENS_RADIUS = 1.  # mm
 A_lens = np.pi * np.square(LENS_RADIUS)
 
 
