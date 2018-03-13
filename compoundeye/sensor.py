@@ -19,7 +19,8 @@ DEBUG = False
 
 class CompassSensor(CompoundEye):
 
-    def __init__(self, nb_lenses=60, fov=np.deg2rad(60), thetas=None, phis=None, alphas=None, kernel=None, mode="cross", fibonacci=False):
+    def __init__(self, nb_lenses=60, fov=np.deg2rad(60), thetas=None, phis=None, alphas=None,
+                 kernel=None, mode="cross", fibonacci=False):
 
         if thetas is not None:
             nb_lenses = len(thetas)
@@ -575,7 +576,7 @@ class CompassSensor(CompoundEye):
             plt.show()
 
     @classmethod
-    def visualise_structure(cls, sensor, title="Sensor Structure"):
+    def visualise_structure(cls, sensor, title="Sensor Structure", show=True):
         """
 
         :param sensor:
@@ -605,7 +606,8 @@ class CompassSensor(CompoundEye):
         plt.axis("off")
         plt.tight_layout()
 
-        # plt.show()
+        if show:
+            plt.show()
         return ax
 
 

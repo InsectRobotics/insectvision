@@ -1,6 +1,7 @@
 import numpy as np
 from learn import SensorObjective, optimise
 from sensor import CompassSensor
+from datetime import datetime
 
 
 if __name__ == "__main_2__":
@@ -56,10 +57,25 @@ if __name__ == "__main_2__":
 
 
 # single
-if __name__ == "__main__":
+if __name__ == "__main_2__":
 
     algo_name = "sea"
-    x, f, log = optimise(SensorObjective(consider_tilting=True), algo_name)
+    samples = 130
+    fov = 150
+    tilt = True
+
+    name = "%s-%s-%03d-%03d%s" % (
+        datetime.now().strftime("%Y%m%d"),
+        algo_name,
+        samples,
+        fov,
+        "-tilt" if tilt else ""
+    )
+    x, f, log = optimise(SensorObjective(
+        nb_lenses=samples,
+        fov=fov,
+        consider_tilting=True
+    ), algo_name, name=name)
 
     print "CHAMP x:", x
     print "CHAMP f:", f
@@ -67,7 +83,7 @@ if __name__ == "__main__":
     thetas, phis, alphas, w = SensorObjective.devectorise(x)
 
     s = CompassSensor(thetas=thetas, phis=phis, alphas=alphas)
-    s.visualise_structure(s, title="%s-struct" % algo_name)
+    s.visualise_structure(s, title="%s-struct" % name, show=True)
 
 
 # archipelago
@@ -112,3 +128,17 @@ if __name__ == "__main_2__":
 
     s = CompassSensor(thetas=thetas, phis=phis, alphas=alphas)
     s.visualise_structure(s)
+
+
+if __name__ == "__main__":
+    from learn.optimisation import __datadir__, plot_log
+
+    name = "20180313-sea-060-060-tilt"
+
+    data = np.load(__datadir__ + "%s.npz" % name)
+    plot_log(data["log"], algo_name="sea", title=name)
+
+    thetas, phis, alphas, w = SensorObjective.devectorise(data["x"])
+
+    s = CompassSensor(thetas=thetas, phis=phis, alphas=alphas)
+    s.visualise_structure(s, title="%s-struct" % name, show=True)
