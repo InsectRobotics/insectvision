@@ -57,7 +57,7 @@ if __name__ == "__main_2__":
 
 
 # single
-if __name__ == "__main_2__":
+if __name__ == "__main__":
 
     algo_name = "sea"
     samples = 130
@@ -74,8 +74,8 @@ if __name__ == "__main_2__":
     x, f, log = optimise(SensorObjective(
         nb_lenses=samples,
         fov=fov,
-        consider_tilting=True
-    ), algo_name, name=name)
+        consider_tilting=tilt
+    ), algo_name, name=name, gen=1000000)
 
     print "CHAMP x:", x
     print "CHAMP f:", f
@@ -130,7 +130,7 @@ if __name__ == "__main_2__":
     s.visualise_structure(s)
 
 
-if __name__ == "__main__":
+if __name__ == "__main_2__":
     from learn.optimisation import __datadir__, plot_log
 
     name = "20180313-sea-060-060-tilt"

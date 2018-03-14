@@ -15,13 +15,13 @@ with open(__dir__ + 'global-optimisation-algorithms.yaml', 'rb') as config:
     go_algorithms = yaml.safe_load(config)
 
 
-def optimise(func, algo_name="sga", population=100, verbosity=100, plot=True, save=True, name=None):
+def optimise(func, algo_name="sga", population=100, verbosity=100, plot=True, save=True, name=None, **kwargs):
 
     # Initialise the problem
     prob = pg.problem(func)
 
     # Initialise the algorithms
-    algorithm = get_algorithm(algo_name)
+    algorithm = get_algorithm(algo_name, **kwargs)
     a = pg.algorithm(algorithm)
     a.set_verbosity(verbosity)
 
@@ -70,7 +70,7 @@ def plot_log(log, algo_name="sga", title="Log"):
     plt.show()
 
 
-def get_algorithm(name):
+def get_algorithm(name, **kwargs):
     algorithm = go_algorithms[name]
     algo_class = eval(algorithm["class"])
     if "params" in algorithm.keys():
@@ -82,9 +82,8 @@ def get_algorithm(name):
     else:
         args = []
     if isinstance(params, dict):
-        kwargs = params
-    else:
-        kwargs = {}
+        for key, value in params.items():
+            kwargs[key] = kwargs.get(key, value)
 
     return algo_class(*args, **kwargs)
 
@@ -95,10 +94,3 @@ def get_log(name):
         return algorithm["log"]
     else:
         return list()
-
-
-if __name__ == "__main__":
-    name = "20180311-sea-060-060"
-
-    log = np.load(__datadir__ + "%s.npz" % name)["log"]
-    plot_log(log, algo_name="sea", title=name)
