@@ -1,5 +1,4 @@
 import numpy as np
-import numpy.linalg as la
 
 
 def point2rotmat(p):
@@ -55,7 +54,6 @@ def vec2sph(vec, y=None, z=None, zenith=False):
     vec = np.array([x, y, z])
 
     rho = np.sqrt(np.square(x) + np.square(y) + np.square(z))
-    # rho = la.norm(vec, axis=0)  # length of the radius
     if vec.ndim == 1 and rho == 0:
         rho = 1.
     elif vec.ndim > 1:

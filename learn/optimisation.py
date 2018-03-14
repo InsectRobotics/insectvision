@@ -67,6 +67,7 @@ def plot_log(log, algo_name="sga", title="Log"):
     # plt.legend()
     plt.xlabel(x_label)
     plt.ylabel("value")
+    plt.ylim([0, 90])
     plt.show()
 
 

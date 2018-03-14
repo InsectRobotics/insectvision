@@ -62,7 +62,7 @@ if __name__ == "__main_2__":
     algo_name = "sea"
     samples = 130
     fov = 150
-    tilt = True
+    tilt = False
 
     name = "%s-%s-%03d-%03d%s" % (
         datetime.now().strftime("%Y%m%d"),
@@ -71,11 +71,11 @@ if __name__ == "__main_2__":
         fov,
         "-tilt" if tilt else ""
     )
-    x, f, log = optimise(SensorObjective(
-        nb_lenses=samples,
-        fov=fov,
-        consider_tilting=True
-    ), algo_name, name=name)
+    so = SensorObjective(nb_lenses=samples, fov=fov, consider_tilting=tilt)
+    x, f, log = optimise(so, algo_name, name=name)
+    # x = so.x_init
+    # f = 0.
+    # log = np.array([])
 
     print "CHAMP x:", x
     print "CHAMP f:", f
@@ -133,7 +133,7 @@ if __name__ == "__main_2__":
 if __name__ == "__main__":
     from learn.optimisation import __datadir__, plot_log
 
-    name = "20180313-sea-060-060-tilt"
+    name = "20180313-sea-130-150-tilt"
 
     data = np.load(__datadir__ + "%s.npz" % name)
     plot_log(data["log"], algo_name="sea", title=name)
