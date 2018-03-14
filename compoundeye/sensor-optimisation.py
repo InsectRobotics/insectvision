@@ -57,7 +57,7 @@ if __name__ == "__main_2__":
 
 
 # single
-if __name__ == "__main_2__":
+if __name__ == "__main__":
 
     algo_name = "sea"
     samples = 130
@@ -72,7 +72,7 @@ if __name__ == "__main_2__":
         "-tilt" if tilt else ""
     )
     so = SensorObjective(nb_lenses=samples, fov=fov, consider_tilting=tilt)
-    x, f, log = optimise(so, algo_name, name=name)
+    x, f, log = optimise(so, algo_name, name=name, gen=1000000)
     # x = so.x_init
     # f = 0.
     # log = np.array([])
@@ -130,7 +130,7 @@ if __name__ == "__main_2__":
     s.visualise_structure(s)
 
 
-if __name__ == "__main__":
+if __name__ == "__main_2__":
     from learn.optimisation import __datadir__, plot_log
 
     name = "20180313-sea-130-150-tilt"
