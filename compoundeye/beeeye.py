@@ -27,6 +27,11 @@ tck_3_4 = splrep(alpha_max_3_4[0], alpha_max_3_4[1], s=0.01)
 
 
 def build_right_beeeye():
+    """
+    Following: "Mimicking honeybee eyes with a 280 degrees field of view catadioptric imaging system"
+    http://iopscience.iop.org/article/10.1088/1748-3182/5/3/036002/pdf
+    :return:
+    """
     Delta_phi_min_v = np.deg2rad(1.5)
     Delta_phi_max_v = np.deg2rad(4.5)
     Delta_phi_min_h = np.deg2rad(2.4)

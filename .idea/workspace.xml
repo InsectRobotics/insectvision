@@ -1,17 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="e16c681d-eb65-43fb-8103-e04458a7c9e9" name="Default" comment="">
+    <list default="true" id="e16c681d-eb65-43fb-8103-e04458a7c9e9" name="Default" comment="Update sensor structure visualisation">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../compmodels/.idea/compmodels.iml" afterPath="$PROJECT_DIR$/../compmodels/.idea/compmodels.iml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/insectvision.iml" afterPath="$PROJECT_DIR$/.idea/insectvision.iml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/modules.xml" afterPath="$PROJECT_DIR$/.idea/modules.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/compoundeye/geometry.py" afterPath="$PROJECT_DIR$/compoundeye/geometry.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/compoundeye/beeeye.py" afterPath="$PROJECT_DIR$/compoundeye/beeeye.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/compoundeye/sensor-optimisation.py" afterPath="$PROJECT_DIR$/compoundeye/sensor-optimisation.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/compoundeye/sensor.py" afterPath="$PROJECT_DIR$/compoundeye/sensor.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/learn/__init__.py" afterPath="$PROJECT_DIR$/learn/__init__.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/learn/loss_function.py" afterPath="$PROJECT_DIR$/learn/loss_function.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/sphere/transform.py" afterPath="$PROJECT_DIR$/sphere/transform.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/learn/optimisation.py" afterPath="$PROJECT_DIR$/learn/optimisation.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../skylight/.idea/skylight.iml" afterPath="$PROJECT_DIR$/../skylight/.idea/skylight.iml" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -22,18 +19,21 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="FileEditorManager">
-    <splitter split-orientation="horizontal" split-proportion="0.46598855">
+    <splitter split-orientation="horizontal" split-proportion="0.4977806">
       <split-first>
-        <leaf>
+        <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
           <file leaf-file-name="sensor-optimisation.py" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/compoundeye/sensor-optimisation.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="176">
-                  <caret line="60" column="19" lean-forward="false" selection-start-line="60" selection-start-column="19" selection-end-line="60" selection-end-column="19" />
+                <state relative-caret-position="619">
+                  <caret line="132" column="24" lean-forward="false" selection-start-line="132" selection-start-column="24" selection-end-line="132" selection-end-column="24" />
                   <folding>
                     <element signature="e#0#18#0" expanded="true" />
-                    <element signature="e#131#2295#0" expanded="false" />
-                    <element signature="e#2717#3916#0" expanded="false" />
+                    <element signature="e#161#2326#0" expanded="false" />
+                    <element signature="e#624#634#0" expanded="false" />
+                    <element signature="e#3091#4290#0" expanded="false" />
+                    <element signature="e#4326#6134#0" expanded="false" />
+                    <element signature="e#6170#7386#0" expanded="false" />
                   </folding>
                 </state>
               </provider>
@@ -42,9 +42,14 @@
           <file leaf-file-name="sensor.py" pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/compoundeye/sensor.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="304">
-                  <caret line="598" column="68" lean-forward="false" selection-start-line="598" selection-start-column="53" selection-end-line="598" selection-end-column="68" />
-                  <folding />
+                <state relative-caret-position="1376">
+                  <caret line="95" column="13" lean-forward="false" selection-start-line="95" selection-start-column="13" selection-end-line="95" selection-end-column="13" />
+                  <folding>
+                    <element signature="e#14007#23967#0" expanded="false" />
+                    <element signature="e#24073#25868#0" expanded="false" />
+                    <element signature="e#26049#27549#0" expanded="false" />
+                    <marker date="1521033581837" expanded="true" signature="25839:25868" ph="..." />
+                  </folding>
                 </state>
               </provider>
             </entry>
@@ -62,65 +67,54 @@
         </leaf>
       </split-first>
       <split-second>
-        <leaf>
-          <file leaf-file-name="optimisation.py" pinned="false" current-in-tab="false">
+        <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+          <file leaf-file-name="optimisation.py" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/learn/optimisation.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="304">
-                  <caret line="234" column="31" lean-forward="false" selection-start-line="234" selection-start-column="31" selection-end-line="234" selection-end-column="31" />
+                <state relative-caret-position="400">
+                  <caret line="58" column="89" lean-forward="false" selection-start-line="58" selection-start-column="89" selection-end-line="58" selection-end-column="89" />
                   <folding>
                     <element signature="e#0#18#0" expanded="true" />
-                    <element signature="e#253#9598#0" expanded="false" />
-                    <element signature="e#9696#10507#0" expanded="false" />
-                    <element signature="e#10546#10798#0" expanded="false" />
-                    <element signature="e#10813#11380#0" expanded="false" />
                   </folding>
                 </state>
               </provider>
             </entry>
           </file>
-          <file leaf-file-name="loss_function.py" pinned="false" current-in-tab="true">
+          <file leaf-file-name="loss_function.py" pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/learn/loss_function.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="521">
-                  <caret line="112" column="0" lean-forward="true" selection-start-line="112" selection-start-column="0" selection-end-line="112" selection-end-column="0" />
+                <state relative-caret-position="1344">
+                  <caret line="324" column="26" lean-forward="false" selection-start-line="324" selection-start-column="26" selection-end-line="324" selection-end-column="26" />
                   <folding>
                     <element signature="e#0#27#0" expanded="true" />
-                    <element signature="e#614#2093#0" expanded="false" />
-                    <element signature="e#2129#2256#0" expanded="false" />
-                    <element signature="e#5293#5339#0" expanded="false" />
-                    <element signature="e#5375#5410#0" expanded="false" />
-                    <element signature="e#5444#5478#0" expanded="false" />
-                    <element signature="e#5518#5557#0" expanded="false" />
-                    <element signature="e#5651#8027#0" expanded="false" />
-                    <element signature="e#6575#6902#0" expanded="false" />
-                    <element signature="e#8137#10440#0" expanded="false" />
-                    <element signature="e#10611#10854#0" expanded="false" />
-                    <element signature="e#11291#11745#0" expanded="false" />
-                    <element signature="e#11821#12274#0" expanded="false" />
-                    <element signature="e#12286#12713#0" expanded="false" />
+                    <element signature="e#2218#2345#0" expanded="false" />
+                    <element signature="e#2459#5345#0" expanded="false" />
+                    <element signature="e#4072#4105#0" expanded="false" />
+                    <element signature="e#5382#5428#0" expanded="false" />
+                    <element signature="e#5464#5499#0" expanded="false" />
+                    <element signature="e#5533#5567#0" expanded="false" />
+                    <element signature="e#5607#5646#0" expanded="false" />
+                    <element signature="e#5740#8116#0" expanded="false" />
+                    <element signature="e#6664#6991#0" expanded="false" />
+                    <element signature="e#8226#10618#0" expanded="false" />
+                    <element signature="e#9261#9294#0" expanded="false" />
+                    <element signature="e#10789#11032#0" expanded="false" />
+                    <element signature="e#11469#11923#0" expanded="false" />
+                    <element signature="e#11999#12452#0" expanded="false" />
+                    <element signature="e#12464#12891#0" expanded="false" />
+                    <element signature="e#13045#13888#0" expanded="false" />
                   </folding>
                 </state>
               </provider>
             </entry>
           </file>
-          <file leaf-file-name="transform.py" pinned="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/sphere/transform.py">
+          <file leaf-file-name="test_sensor.py" pinned="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/compoundeye/test_sensor.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="62">
-                  <caret line="4" column="4" lean-forward="false" selection-start-line="4" selection-start-column="4" selection-end-line="4" selection-end-column="4" />
+                <state relative-caret-position="1808">
+                  <caret line="119" column="43" lean-forward="false" selection-start-line="119" selection-start-column="12" selection-end-line="119" selection-end-column="43" />
                   <folding>
                     <element signature="e#0#18#0" expanded="true" />
-                    <element signature="e#72#319#0" expanded="false" />
-                    <element signature="e#378#1003#0" expanded="false" />
-                    <element signature="e#1058#2047#0" expanded="false" />
-                    <element signature="e#2130#2266#0" expanded="false" />
-                    <element signature="e#2290#2411#0" expanded="false" />
-                    <element signature="e#2562#4053#0" expanded="false" />
-                    <element signature="e#4086#4455#0" expanded="false" />
-                    <element signature="e#4490#4747#0" expanded="false" />
-                    <element signature="e#4776#5059#0" expanded="false" />
-                    <element signature="e#5093#5242#0" expanded="false" />
                   </folding>
                 </state>
               </provider>
@@ -138,21 +132,24 @@
       <list>
         <option value="$PROJECT_DIR$/sphere/__init__.py" />
         <option value="$PROJECT_DIR$/learn/__init__.py" />
-        <option value="$PROJECT_DIR$/sphere/transform.py" />
         <option value="$PROJECT_DIR$/compoundeye/geometry.py" />
+        <option value="$PROJECT_DIR$/sphere/transform.py" />
         <option value="$PROJECT_DIR$/compoundeye/sensor.py" />
+        <option value="$PROJECT_DIR$/compoundeye/beeeye.py" />
         <option value="$PROJECT_DIR$/learn/loss_function.py" />
         <option value="$PROJECT_DIR$/compoundeye/sensor-optimisation.py" />
+        <option value="$PROJECT_DIR$/learn/optimisation.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="1966" />
-    <option name="y" value="-4" />
-    <option name="width" value="1874" />
-    <option name="height" value="1084" />
+    <option name="x" value="1965" />
+    <option name="y" value="-14" />
+    <option name="width" value="1876" />
+    <option name="height" value="1095" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="true">
+    <OptionsSetting value="false" id="Update" />
     <ConfirmationsSetting value="1" id="Add" />
   </component>
   <component name="ProjectView">
@@ -187,7 +184,7 @@
             <path>
               <item name="insectvision" type="b2602c69:ProjectViewProjectNode" />
               <item name="insectvision" type="462c0819:PsiDirectoryNode" />
-              <item name="learn" type="462c0819:PsiDirectoryNode" />
+              <item name="data" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
           <select />
@@ -205,125 +202,6 @@
         <option name="myUseModuleSdk" value="true" />
       </console-settings>
     </option>
-  </component>
-  <component name="RestoreUpdateTree" date="Moments ago" ActionInfo="_Update">
-    <UpdatedFiles>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Updated from server" />
-        <option name="myStatusName" value="Changed on server" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="CHANGED_ON_SERVER" />
-        <FILE-GROUP>
-          <option name="myUpdateName" value="Updated" />
-          <option name="myStatusName" value="Changed" />
-          <option name="mySupportsDeletion" value="false" />
-          <option name="myCanBeAbsent" value="false" />
-          <option name="myId" value="UPDATED" />
-          <PATH vcs="Git" revision="">$PROJECT_DIR$/.idea/insectvision.iml</PATH>
-          <PATH vcs="Git" revision="">$PROJECT_DIR$/compoundeye/sensor-optimisation.py</PATH>
-          <PATH vcs="Git" revision="">$PROJECT_DIR$/compoundeye/sensor.py</PATH>
-          <PATH vcs="Git" revision="">$PROJECT_DIR$/../compmodels/.idea/compmodels.iml</PATH>
-          <PATH vcs="Git" revision="">$PROJECT_DIR$/../skylight/.idea/misc.xml</PATH>
-          <PATH vcs="Git" revision="">$PROJECT_DIR$/../skylight/.idea/modules.xml</PATH>
-          <PATH vcs="Git" revision="">$PROJECT_DIR$/../skylight/.idea/skylight.iml</PATH>
-          <PATH vcs="Git" revision="">$PROJECT_DIR$/../skylight/.idea/vcs.xml</PATH>
-          <PATH vcs="Git" revision="">$PROJECT_DIR$/../skylight/.idea/workspace.xml</PATH>
-        </FILE-GROUP>
-        <FILE-GROUP>
-          <option name="myUpdateName" value="Created" />
-          <option name="myStatusName" value="Created" />
-          <option name="mySupportsDeletion" value="false" />
-          <option name="myCanBeAbsent" value="false" />
-          <option name="myId" value="CREATED" />
-          <PATH vcs="Git" revision="">$PROJECT_DIR$/learn/optimisation.py</PATH>
-        </FILE-GROUP>
-        <FILE-GROUP>
-          <option name="myUpdateName" value="Deleted" />
-          <option name="myStatusName" value="Deleted" />
-          <option name="mySupportsDeletion" value="false" />
-          <option name="myCanBeAbsent" value="true" />
-          <option name="myId" value="REMOVED_FROM_REPOSITORY" />
-        </FILE-GROUP>
-        <FILE-GROUP>
-          <option name="myUpdateName" value="Restored" />
-          <option name="myStatusName" value="Will be restored" />
-          <option name="mySupportsDeletion" value="false" />
-          <option name="myCanBeAbsent" value="false" />
-          <option name="myId" value="RESTORED" />
-        </FILE-GROUP>
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Modified" />
-        <option name="myStatusName" value="Modified" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="MODIFIED" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Skipped" />
-        <option name="myStatusName" value="Skipped" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="SKIPPED" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Merged with conflicts" />
-        <option name="myStatusName" value="Will be merged with conflicts" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="MERGED_WITH_CONFLICTS" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Merged with tree conflicts" />
-        <option name="myStatusName" value="Merged with tree conflicts" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="MERGED_WITH_TREE_CONFLICT" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Merged with property conflicts" />
-        <option name="myStatusName" value="Will be merged with property conflicts" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="MERGED_WITH_PROPERTY_CONFLICT" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Merged" />
-        <option name="myStatusName" value="Will be merged" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="MERGED" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Not in repository" />
-        <option name="myStatusName" value="Not in repository" />
-        <option name="mySupportsDeletion" value="true" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="UNKNOWN" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Locally added" />
-        <option name="myStatusName" value="Locally added" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="LOCALLY_ADDED" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Locally removed" />
-        <option name="myStatusName" value="Locally removed" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="LOCALLY_REMOVED" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Switched" />
-        <option name="myStatusName" value="Switched" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="SWITCHED" />
-      </FILE-GROUP>
-    </UpdatedFiles>
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -435,61 +313,525 @@
       <option name="presentableId" value="Default" />
       <updated>1512580619593</updated>
     </task>
+    <task id="LOCAL-00001" summary="Involve tilting in the objective function&#10; - not tested 100% yet&#10; - organise repositories&#10;    - move classes and methods from one project to the other&#10;    - add comments">
+      <created>1520887555205</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1520887555205</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Update sensor structure visualisation">
+      <created>1521041692213</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1521041692213</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="1966" y="-4" width="1874" height="1084" extended-state="6" />
+    <frame x="1965" y="-14" width="1876" height="1095" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.16061899" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.15848452" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
-      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="true" content_ui="tabs" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32925585" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.32925585" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
-      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
-      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
+      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.3975535" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
+      <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="true" content_ui="tabs" />
-      <window_info id="Data View" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
+      <window_info id="Data View" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
-      <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
+      <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32925585" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
     </layout>
   </component>
   <component name="VcsContentAnnotationSettings">
     <option name="myLimit" value="2678400000" />
   </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Involve tilting in the objective function&#10; - not tested 100% yet&#10; - organise repositories&#10;    - move classes and methods from one project to the other&#10;    - add comments" />
+    <MESSAGE value="Update sensor structure visualisation" />
+    <option name="LAST_COMMIT_MESSAGE" value="Update sensor structure visualisation" />
+  </component>
   <component name="XDebuggerManager">
-    <breakpoint-manager />
+    <breakpoint-manager>
+      <option name="time" value="1" />
+    </breakpoint-manager>
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/compoundeye/tl1_weights.png">
-      <provider selected="true" editor-type-id="images">
-        <state />
+    <entry file="file://$PROJECT_DIR$/compoundeye/geometry.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="48">
+          <caret line="4" column="16" lean-forward="false" selection-start-line="4" selection-start-column="16" selection-end-line="4" selection-end-column="16" />
+          <folding />
+        </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/sphere/__init__.py">
+    <entry file="file://$PROJECT_DIR$/learn/optimisation.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="16">
-          <caret line="1" column="39" lean-forward="true" selection-start-line="1" selection-start-column="39" selection-end-line="1" selection-end-column="39" />
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
-            <element signature="e#0#62#0" expanded="false" />
+            <element signature="e#0#18#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/learn/__init__.py">
+    <entry file="file://$PROJECT_DIR$/learn/loss_function.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="176">
+          <caret line="16" column="38" lean-forward="false" selection-start-line="16" selection-start-column="38" selection-end-line="16" selection-end-column="38" />
+          <folding>
+            <element signature="e#0#27#0" expanded="true" />
+            <element signature="e#2218#2345#0" expanded="false" />
+            <element signature="e#2459#5345#0" expanded="false" />
+            <element signature="e#4072#4105#0" expanded="false" />
+            <element signature="e#5382#5428#0" expanded="false" />
+            <element signature="e#5464#5499#0" expanded="false" />
+            <element signature="e#5533#5567#0" expanded="false" />
+            <element signature="e#5607#5646#0" expanded="false" />
+            <element signature="e#5740#8116#0" expanded="false" />
+            <element signature="e#6664#6991#0" expanded="false" />
+            <element signature="e#8226#10618#0" expanded="false" />
+            <element signature="e#9261#9294#0" expanded="false" />
+            <element signature="e#10789#11032#0" expanded="false" />
+            <element signature="e#11469#11923#0" expanded="false" />
+            <element signature="e#11999#12452#0" expanded="false" />
+            <element signature="e#12464#12891#0" expanded="false" />
+            <element signature="e#13045#13888#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/sensor-optimisation.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="80">
+          <caret line="57" column="0" lean-forward="false" selection-start-line="57" selection-start-column="0" selection-end-line="57" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+            <element signature="e#161#2326#0" expanded="false" />
+            <element signature="e#624#634#0" expanded="false" />
+            <element signature="e#3091#4290#0" expanded="false" />
+            <element signature="e#4326#6134#0" expanded="false" />
+            <element signature="e#6170#7386#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/sensor.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="9840">
+          <caret line="615" column="23" lean-forward="false" selection-start-line="615" selection-start-column="23" selection-end-line="615" selection-end-column="23" />
+          <folding>
+            <element signature="e#14007#23967#0" expanded="false" />
+            <element signature="e#24073#25868#0" expanded="false" />
+            <element signature="e#26049#27549#0" expanded="false" />
+            <marker date="1521033581837" expanded="true" signature="25839:25868" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/learn/optimisation.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/geometry.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="48">
-          <caret line="3" column="0" lean-forward="true" selection-start-line="3" selection-start-column="0" selection-end-line="3" selection-end-column="0" />
+          <caret line="4" column="16" lean-forward="false" selection-start-line="4" selection-start-column="16" selection-end-line="4" selection-end-column="16" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/learn/loss_function.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="176">
+          <caret line="16" column="38" lean-forward="false" selection-start-line="16" selection-start-column="38" selection-end-line="16" selection-end-column="38" />
           <folding>
-            <element signature="e#0#51#0" expanded="false" />
+            <element signature="e#0#27#0" expanded="true" />
+            <element signature="e#2218#2345#0" expanded="false" />
+            <element signature="e#2459#5345#0" expanded="false" />
+            <element signature="e#4072#4105#0" expanded="false" />
+            <element signature="e#5382#5428#0" expanded="false" />
+            <element signature="e#5464#5499#0" expanded="false" />
+            <element signature="e#5533#5567#0" expanded="false" />
+            <element signature="e#5607#5646#0" expanded="false" />
+            <element signature="e#5740#8116#0" expanded="false" />
+            <element signature="e#6664#6991#0" expanded="false" />
+            <element signature="e#8226#10618#0" expanded="false" />
+            <element signature="e#9261#9294#0" expanded="false" />
+            <element signature="e#10789#11032#0" expanded="false" />
+            <element signature="e#11469#11923#0" expanded="false" />
+            <element signature="e#11999#12452#0" expanded="false" />
+            <element signature="e#12464#12891#0" expanded="false" />
+            <element signature="e#13045#13888#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/sensor-optimisation.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="464">
+          <caret line="147" column="70" lean-forward="false" selection-start-line="147" selection-start-column="70" selection-end-line="147" selection-end-column="70" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+            <element signature="e#161#2326#0" expanded="false" />
+            <element signature="e#624#634#0" expanded="false" />
+            <element signature="e#3091#4290#0" expanded="false" />
+            <element signature="e#4326#6134#0" expanded="false" />
+            <element signature="e#6170#7386#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/sensor.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="9840">
+          <caret line="615" column="23" lean-forward="false" selection-start-line="615" selection-start-column="23" selection-end-line="615" selection-end-column="23" />
+          <folding>
+            <element signature="e#14007#23967#0" expanded="false" />
+            <element signature="e#24073#25868#0" expanded="false" />
+            <element signature="e#26049#27549#0" expanded="false" />
+            <marker date="1521033581837" expanded="true" signature="25839:25868" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/geometry.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="48">
+          <caret line="4" column="16" lean-forward="false" selection-start-line="4" selection-start-column="16" selection-end-line="4" selection-end-column="16" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/learn/optimisation.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/learn/loss_function.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="176">
+          <caret line="16" column="38" lean-forward="false" selection-start-line="16" selection-start-column="38" selection-end-line="16" selection-end-column="38" />
+          <folding>
+            <element signature="e#0#27#0" expanded="true" />
+            <element signature="e#2218#2345#0" expanded="false" />
+            <element signature="e#2459#5345#0" expanded="false" />
+            <element signature="e#4072#4105#0" expanded="false" />
+            <element signature="e#5382#5428#0" expanded="false" />
+            <element signature="e#5464#5499#0" expanded="false" />
+            <element signature="e#5533#5567#0" expanded="false" />
+            <element signature="e#5607#5646#0" expanded="false" />
+            <element signature="e#5740#8116#0" expanded="false" />
+            <element signature="e#6664#6991#0" expanded="false" />
+            <element signature="e#8226#10618#0" expanded="false" />
+            <element signature="e#9261#9294#0" expanded="false" />
+            <element signature="e#10789#11032#0" expanded="false" />
+            <element signature="e#11469#11923#0" expanded="false" />
+            <element signature="e#11999#12452#0" expanded="false" />
+            <element signature="e#12464#12891#0" expanded="false" />
+            <element signature="e#13045#13888#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/sensor-optimisation.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+            <element signature="e#161#2326#0" expanded="false" />
+            <element signature="e#624#634#0" expanded="false" />
+            <element signature="e#3091#4290#0" expanded="false" />
+            <element signature="e#4326#6134#0" expanded="false" />
+            <element signature="e#6170#7386#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/sensor.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="9840">
+          <caret line="615" column="23" lean-forward="false" selection-start-line="615" selection-start-column="23" selection-end-line="615" selection-end-column="23" />
+          <folding>
+            <element signature="e#14007#23967#0" expanded="false" />
+            <element signature="e#24073#25868#0" expanded="false" />
+            <element signature="e#26049#27549#0" expanded="false" />
+            <marker date="1521033581837" expanded="true" signature="25839:25868" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/sensor-optimisation.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="272">
+          <caret line="135" column="20" lean-forward="false" selection-start-line="135" selection-start-column="20" selection-end-line="135" selection-end-column="20" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+            <element signature="e#161#2326#0" expanded="false" />
+            <element signature="e#624#634#0" expanded="false" />
+            <element signature="e#3091#4290#0" expanded="false" />
+            <element signature="e#4326#6134#0" expanded="false" />
+            <element signature="e#6170#7386#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/sensor.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="9840">
+          <caret line="615" column="23" lean-forward="false" selection-start-line="615" selection-start-column="23" selection-end-line="615" selection-end-column="23" />
+          <folding>
+            <element signature="e#14007#23967#0" expanded="false" />
+            <element signature="e#24073#25868#0" expanded="false" />
+            <element signature="e#26049#27549#0" expanded="false" />
+            <marker date="1521033581837" expanded="true" signature="25839:25868" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/learn/optimisation.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="800">
+          <caret line="54" column="48" lean-forward="false" selection-start-line="54" selection-start-column="48" selection-end-line="54" selection-end-column="48" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/learn/loss_function.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="176">
+          <caret line="16" column="38" lean-forward="false" selection-start-line="16" selection-start-column="38" selection-end-line="16" selection-end-column="38" />
+          <folding>
+            <element signature="e#0#27#0" expanded="true" />
+            <element signature="e#2218#2345#0" expanded="false" />
+            <element signature="e#2459#5345#0" expanded="false" />
+            <element signature="e#4072#4105#0" expanded="false" />
+            <element signature="e#5382#5428#0" expanded="false" />
+            <element signature="e#5464#5499#0" expanded="false" />
+            <element signature="e#5533#5567#0" expanded="false" />
+            <element signature="e#5607#5646#0" expanded="false" />
+            <element signature="e#5740#8116#0" expanded="false" />
+            <element signature="e#6664#6991#0" expanded="false" />
+            <element signature="e#8226#10618#0" expanded="false" />
+            <element signature="e#9261#9294#0" expanded="false" />
+            <element signature="e#10789#11032#0" expanded="false" />
+            <element signature="e#11469#11923#0" expanded="false" />
+            <element signature="e#11999#12452#0" expanded="false" />
+            <element signature="e#12464#12891#0" expanded="false" />
+            <element signature="e#13045#13888#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/beeeye.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="416">
+          <caret line="28" column="25" lean-forward="false" selection-start-line="28" selection-start-column="25" selection-end-line="28" selection-end-column="25" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/sensor-optimisation.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="272">
+          <caret line="135" column="20" lean-forward="false" selection-start-line="135" selection-start-column="20" selection-end-line="135" selection-end-column="20" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+            <element signature="e#161#2326#0" expanded="false" />
+            <element signature="e#624#634#0" expanded="false" />
+            <element signature="e#3091#4290#0" expanded="false" />
+            <element signature="e#4326#6134#0" expanded="false" />
+            <element signature="e#6170#7386#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/sensor.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="9840">
+          <caret line="615" column="23" lean-forward="false" selection-start-line="615" selection-start-column="23" selection-end-line="615" selection-end-column="23" />
+          <folding>
+            <element signature="e#14007#23967#0" expanded="false" />
+            <element signature="e#24073#25868#0" expanded="false" />
+            <element signature="e#26049#27549#0" expanded="false" />
+            <marker date="1521033581837" expanded="true" signature="25839:25868" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/learn/optimisation.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="800">
+          <caret line="54" column="48" lean-forward="false" selection-start-line="54" selection-start-column="48" selection-end-line="54" selection-end-column="48" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/geometry.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="48">
+          <caret line="4" column="16" lean-forward="false" selection-start-line="4" selection-start-column="16" selection-end-line="4" selection-end-column="16" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/learn/loss_function.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="176">
+          <caret line="16" column="38" lean-forward="false" selection-start-line="16" selection-start-column="38" selection-end-line="16" selection-end-column="38" />
+          <folding>
+            <element signature="e#0#27#0" expanded="true" />
+            <element signature="e#2218#2345#0" expanded="false" />
+            <element signature="e#2459#5345#0" expanded="false" />
+            <element signature="e#4072#4105#0" expanded="false" />
+            <element signature="e#5382#5428#0" expanded="false" />
+            <element signature="e#5464#5499#0" expanded="false" />
+            <element signature="e#5533#5567#0" expanded="false" />
+            <element signature="e#5607#5646#0" expanded="false" />
+            <element signature="e#5740#8116#0" expanded="false" />
+            <element signature="e#6664#6991#0" expanded="false" />
+            <element signature="e#8226#10618#0" expanded="false" />
+            <element signature="e#9261#9294#0" expanded="false" />
+            <element signature="e#10789#11032#0" expanded="false" />
+            <element signature="e#11469#11923#0" expanded="false" />
+            <element signature="e#11999#12452#0" expanded="false" />
+            <element signature="e#12464#12891#0" expanded="false" />
+            <element signature="e#13045#13888#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/sensor-optimisation.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1280">
+          <caret line="83" column="0" lean-forward="false" selection-start-line="83" selection-start-column="0" selection-end-line="83" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+            <element signature="e#161#2326#0" expanded="false" />
+            <element signature="e#624#634#0" expanded="false" />
+            <element signature="e#3091#4290#0" expanded="false" />
+            <element signature="e#4326#6134#0" expanded="false" />
+            <element signature="e#6170#7386#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/sensor.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="9584">
+          <caret line="599" column="68" lean-forward="false" selection-start-line="599" selection-start-column="68" selection-end-line="599" selection-end-column="68" />
+          <folding>
+            <element signature="e#14007#23967#0" expanded="false" />
+            <element signature="e#24073#25868#0" expanded="false" />
+            <element signature="e#26049#27549#0" expanded="false" />
+            <marker date="1521033581837" expanded="true" signature="25839:25868" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/geometry.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="48">
+          <caret line="4" column="16" lean-forward="false" selection-start-line="4" selection-start-column="16" selection-end-line="4" selection-end-column="16" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/learn/optimisation.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="800">
+          <caret line="54" column="31" lean-forward="false" selection-start-line="54" selection-start-column="31" selection-end-line="54" selection-end-column="31" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/learn/loss_function.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1296">
+          <caret line="112" column="0" lean-forward="false" selection-start-line="112" selection-start-column="0" selection-end-line="112" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#27#0" expanded="true" />
+            <element signature="e#2218#2345#0" expanded="false" />
+            <element signature="e#2459#5345#0" expanded="false" />
+            <element signature="e#4072#4105#0" expanded="false" />
+            <element signature="e#5382#5428#0" expanded="false" />
+            <element signature="e#5464#5499#0" expanded="false" />
+            <element signature="e#5533#5567#0" expanded="false" />
+            <element signature="e#5607#5646#0" expanded="false" />
+            <element signature="e#5740#8116#0" expanded="false" />
+            <element signature="e#6664#6991#0" expanded="false" />
+            <element signature="e#8226#10618#0" expanded="false" />
+            <element signature="e#9261#9294#0" expanded="false" />
+            <element signature="e#10789#11032#0" expanded="false" />
+            <element signature="e#11469#11923#0" expanded="false" />
+            <element signature="e#11999#12452#0" expanded="false" />
+            <element signature="e#12464#12891#0" expanded="false" />
+            <element signature="e#13045#13888#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/sensor-optimisation.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="176">
+          <caret line="60" column="19" lean-forward="false" selection-start-line="60" selection-start-column="19" selection-end-line="60" selection-end-column="19" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+            <element signature="e#161#2326#0" expanded="false" />
+            <element signature="e#624#634#0" expanded="false" />
+            <element signature="e#3091#4290#0" expanded="false" />
+            <element signature="e#4326#6134#0" expanded="false" />
+            <element signature="e#6170#7386#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/geometry.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="48">
+          <caret line="4" column="16" lean-forward="false" selection-start-line="4" selection-start-column="16" selection-end-line="4" selection-end-column="16" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/sensor.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="9568">
+          <caret line="598" column="68" lean-forward="false" selection-start-line="598" selection-start-column="53" selection-end-line="598" selection-end-column="68" />
+          <folding>
+            <element signature="e#14007#23967#0" expanded="false" />
+            <element signature="e#24073#25868#0" expanded="false" />
+            <element signature="e#26049#27549#0" expanded="false" />
+            <marker date="1521033581837" expanded="true" signature="25839:25868" ph="..." />
           </folding>
         </state>
       </provider>
@@ -500,19 +842,55 @@
           <caret line="234" column="31" lean-forward="false" selection-start-line="234" selection-start-column="31" selection-end-line="234" selection-end-column="31" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
-            <element signature="e#253#9598#0" expanded="false" />
-            <element signature="e#9696#10507#0" expanded="false" />
-            <element signature="e#10546#10798#0" expanded="false" />
-            <element signature="e#10813#11380#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/compoundeye/geometry.py">
+    <entry file="file://$PROJECT_DIR$/sphere/transform.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="48">
-          <caret line="4" column="16" lean-forward="false" selection-start-line="4" selection-start-column="16" selection-end-line="4" selection-end-column="16" />
-          <folding />
+          <caret line="4" column="4" lean-forward="false" selection-start-line="4" selection-start-column="4" selection-end-line="4" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/learn/loss_function.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1296">
+          <caret line="112" column="0" lean-forward="true" selection-start-line="112" selection-start-column="0" selection-end-line="112" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#27#0" expanded="true" />
+            <element signature="e#2218#2345#0" expanded="false" />
+            <element signature="e#2459#5345#0" expanded="false" />
+            <element signature="e#4072#4105#0" expanded="false" />
+            <element signature="e#5382#5428#0" expanded="false" />
+            <element signature="e#5464#5499#0" expanded="false" />
+            <element signature="e#5533#5567#0" expanded="false" />
+            <element signature="e#5607#5646#0" expanded="false" />
+            <element signature="e#5740#8116#0" expanded="false" />
+            <element signature="e#6664#6991#0" expanded="false" />
+            <element signature="e#8226#10618#0" expanded="false" />
+            <element signature="e#9261#9294#0" expanded="false" />
+            <element signature="e#10789#11032#0" expanded="false" />
+            <element signature="e#11469#11923#0" expanded="false" />
+            <element signature="e#11999#12452#0" expanded="false" />
+            <element signature="e#12464#12891#0" expanded="false" />
+            <element signature="e#13045#13888#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/tl1_weights.png" />
+    <entry file="file://$PROJECT_DIR$/sphere/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="16">
+          <caret line="1" column="39" lean-forward="true" selection-start-line="1" selection-start-column="39" selection-end-line="1" selection-end-column="39" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/learn/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="48">
+          <caret line="3" column="0" lean-forward="true" selection-start-line="3" selection-start-column="0" selection-end-line="3" selection-end-column="0" />
         </state>
       </provider>
     </entry>
@@ -526,63 +904,117 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/sphere/transform.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="62">
-          <caret line="4" column="4" lean-forward="false" selection-start-line="4" selection-start-column="4" selection-end-line="4" selection-end-column="4" />
-          <folding>
-            <element signature="e#0#18#0" expanded="true" />
-            <element signature="e#72#319#0" expanded="false" />
-            <element signature="e#378#1003#0" expanded="false" />
-            <element signature="e#1058#2047#0" expanded="false" />
-            <element signature="e#2130#2266#0" expanded="false" />
-            <element signature="e#2290#2411#0" expanded="false" />
-            <element signature="e#2562#4053#0" expanded="false" />
-            <element signature="e#4086#4455#0" expanded="false" />
-            <element signature="e#4490#4747#0" expanded="false" />
-            <element signature="e#4776#5059#0" expanded="false" />
-            <element signature="e#5093#5242#0" expanded="false" />
-          </folding>
+        <state relative-caret-position="0">
+          <caret line="0" column="18" lean-forward="false" selection-start-line="0" selection-start-column="18" selection-end-line="0" selection-end-column="18" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/learn/global-optimisation-algorithms.yaml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="288">
+          <caret line="60" column="61" lean-forward="true" selection-start-line="60" selection-start-column="23" selection-end-line="60" selection-end-column="61" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/.gitignore">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="161">
+          <caret line="94" column="3" lean-forward="true" selection-start-line="94" selection-start-column="3" selection-end-line="94" selection-end-column="3" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/geometry.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="48">
+          <caret line="4" column="16" lean-forward="false" selection-start-line="4" selection-start-column="16" selection-end-line="4" selection-end-column="16" />
+          <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/compoundeye/sensor.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="304">
-          <caret line="598" column="68" lean-forward="false" selection-start-line="598" selection-start-column="53" selection-end-line="598" selection-end-column="68" />
-          <folding />
+        <state relative-caret-position="1376">
+          <caret line="95" column="13" lean-forward="false" selection-start-line="95" selection-start-column="13" selection-end-line="95" selection-end-column="13" />
+          <folding>
+            <element signature="e#14007#23967#0" expanded="false" />
+            <element signature="e#24073#25868#0" expanded="false" />
+            <element signature="e#26049#27549#0" expanded="false" />
+            <marker date="1521033581837" expanded="true" signature="25839:25868" ph="..." />
+          </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/learn/loss_function.py">
+    <entry file="file://$PROJECT_DIR$/compoundeye/sensor_parameters_analysis.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="521">
-          <caret line="112" column="0" lean-forward="true" selection-start-line="112" selection-start-column="0" selection-end-line="112" selection-end-column="0" />
+        <state relative-caret-position="-432">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/test_sensor.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1808">
+          <caret line="119" column="43" lean-forward="false" selection-start-line="119" selection-start-column="12" selection-end-line="119" selection-end-column="43" />
           <folding>
-            <element signature="e#0#27#0" expanded="true" />
-            <element signature="e#614#2093#0" expanded="false" />
-            <element signature="e#2129#2256#0" expanded="false" />
-            <element signature="e#5293#5339#0" expanded="false" />
-            <element signature="e#5375#5410#0" expanded="false" />
-            <element signature="e#5444#5478#0" expanded="false" />
-            <element signature="e#5518#5557#0" expanded="false" />
-            <element signature="e#5651#8027#0" expanded="false" />
-            <element signature="e#6575#6902#0" expanded="false" />
-            <element signature="e#8137#10440#0" expanded="false" />
-            <element signature="e#10611#10854#0" expanded="false" />
-            <element signature="e#11291#11745#0" expanded="false" />
-            <element signature="e#11821#12274#0" expanded="false" />
-            <element signature="e#12286#12713#0" expanded="false" />
+            <element signature="e#0#18#0" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/compoundeye/beeeye.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="416">
+          <caret line="28" column="25" lean-forward="false" selection-start-line="28" selection-start-column="25" selection-end-line="28" selection-end-column="25" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/compoundeye/sensor-optimisation.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="176">
-          <caret line="60" column="19" lean-forward="false" selection-start-line="60" selection-start-column="19" selection-end-line="60" selection-end-column="19" />
+        <state relative-caret-position="619">
+          <caret line="132" column="24" lean-forward="false" selection-start-line="132" selection-start-column="24" selection-end-line="132" selection-end-column="24" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
-            <element signature="e#131#2295#0" expanded="false" />
-            <element signature="e#2717#3916#0" expanded="false" />
+            <element signature="e#161#2326#0" expanded="false" />
+            <element signature="e#624#634#0" expanded="false" />
+            <element signature="e#3091#4290#0" expanded="false" />
+            <element signature="e#4326#6134#0" expanded="false" />
+            <element signature="e#6170#7386#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/learn/loss_function.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1344">
+          <caret line="324" column="26" lean-forward="false" selection-start-line="324" selection-start-column="26" selection-end-line="324" selection-end-column="26" />
+          <folding>
+            <element signature="e#0#27#0" expanded="true" />
+            <element signature="e#2218#2345#0" expanded="false" />
+            <element signature="e#2459#5345#0" expanded="false" />
+            <element signature="e#4072#4105#0" expanded="false" />
+            <element signature="e#5382#5428#0" expanded="false" />
+            <element signature="e#5464#5499#0" expanded="false" />
+            <element signature="e#5533#5567#0" expanded="false" />
+            <element signature="e#5607#5646#0" expanded="false" />
+            <element signature="e#5740#8116#0" expanded="false" />
+            <element signature="e#6664#6991#0" expanded="false" />
+            <element signature="e#8226#10618#0" expanded="false" />
+            <element signature="e#9261#9294#0" expanded="false" />
+            <element signature="e#10789#11032#0" expanded="false" />
+            <element signature="e#11469#11923#0" expanded="false" />
+            <element signature="e#11999#12452#0" expanded="false" />
+            <element signature="e#12464#12891#0" expanded="false" />
+            <element signature="e#13045#13888#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/learn/optimisation.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="400">
+          <caret line="58" column="89" lean-forward="false" selection-start-line="58" selection-start-column="89" selection-end-line="58" selection-end-column="89" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
           </folding>
         </state>
       </provider>

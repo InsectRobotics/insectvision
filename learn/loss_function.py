@@ -22,11 +22,13 @@ class SensorObjective(object):
         alphas = (phis + 3 * np.pi / 2) % (2 * np.pi) - np.pi
 
         # initialise weights of the computational model
-        phi_tl2 = np.linspace(0., 4 * np.pi, nb_tl2, endpoint=False)  # TL2 preference angles
         phi_tb1 = np.linspace(0., 2 * np.pi, nb_tb1, endpoint=False)  # TB1 preference angles
-        w_tl2 = 1. / nb_lenses * np.sin(phi_tl2[np.newaxis] - alphas[:, np.newaxis])
-        w_tb1 = float(nb_tb1) / float(nb_tl2) * np.sin(phi_tb1[np.newaxis] - phi_tl2[:, np.newaxis] + np.pi / 2)
-        w = w_tl2.dot(w_tb1)
+        # phi_tl2 = np.linspace(0., 4 * np.pi, nb_tl2, endpoint=False)  # TL2 preference angles
+        # w_tl2 = 1. / nb_lenses * np.sin(phi_tl2[np.newaxis] - alphas[:, np.newaxis])
+        # w_tb1 = float(nb_tb1) / float(nb_tl2) * np.cos(phi_tb1[np.newaxis] - phi_tl2[:, np.newaxis])
+        # w = w_tl2.dot(w_tb1)
+
+        w = nb_tb1 / (2. * nb_lenses) * np.sin(phi_tb1[np.newaxis] - alphas[:, np.newaxis])
 
         # create initial feature-vector
         self.x_init = self.vectorise(thetas, phis, alphas, w)
@@ -228,7 +230,8 @@ class SensorObjective(object):
         if w is None and w_tb1 is None:
             w_tb1 = float(nb_tb1) / float(nb_tl2) * np.sin(phi_tb1[np.newaxis] - phi_tl2[:, np.newaxis] + np.pi / 2)
         if w is None:
-            w = w_tl2.dot(w_tb1)
+            w = nb_tb1 / (2. * S) * np.sin(phi_tb1[np.newaxis] - alpha[:, np.newaxis])
+            # w = w_tl2.dot(w_tb1)
         r_tb1 = r.dot(w)
 
         # decode signal - FFT
@@ -317,3 +320,23 @@ losses = {
 def get_loss(name):
     assert name in losses.keys(), "Name of loss function does not exist."
     return losses[name]
+
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
+    angles = np.array([
+        [0., 0.],
+        [np.pi / 6, 0.], [np.pi / 6, np.pi / 4], [np.pi / 6, 2 * np.pi / 4], [np.pi / 6, 3 * np.pi / 4],
+        [np.pi / 6, 4 * np.pi / 4], [np.pi / 6, 5 * np.pi / 4], [np.pi / 6, 6 * np.pi / 4], [np.pi / 6, 7 * np.pi / 4],
+        [np.pi / 3, 0.], [np.pi / 3, np.pi / 4], [np.pi / 3, 2 * np.pi / 4], [np.pi / 3, 3 * np.pi / 4],
+        [np.pi / 3, 4 * np.pi / 4], [np.pi / 3, 5 * np.pi / 4], [np.pi / 3, 6 * np.pi / 4], [np.pi / 3, 7 * np.pi / 4]
+    ])  # 17
+
+    ax = plt.subplot(111, polar=True)
+    ax.set_theta_zero_location("N")
+    plt.scatter(angles[:, 1], np.rad2deg(angles[:, 0]), c="r", marker="o")
+    plt.ylim([0, 90])
+    plt.xticks([0, np.pi/4, np.pi/2, 3*np.pi/4, np.pi, -3*np.pi/4, -np.pi/2, -np.pi/4])
+    plt.yticks([0, 30, 60, 90])
+    plt.show()
