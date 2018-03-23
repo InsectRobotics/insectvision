@@ -60,7 +60,7 @@ class SensorObjective(object):
                 [np.pi/3, 4*np.pi/4], [np.pi/3, 5*np.pi/4], [np.pi/3, 6*np.pi/4], [np.pi/3, 7*np.pi/4]
             ])  # 17
             if samples == 1000:
-                samples /= 10
+                samples /= 2
         else:
             angles = np.array([[0., 0.]])  # 1
 

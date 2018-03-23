@@ -63,27 +63,30 @@ if __name__ == "__main__":
     samples = 130
     fov = 150
     tilt = True
+    seed = 4
 
-    name = "%s-%s-%03d-%03d%s" % (
+    name = "%s-%s-%03d-%03d%s-%04d" % (
         datetime.now().strftime("%Y%m%d"),
         algo_name,
         samples,
         fov,
-        "-tilt" if tilt else ""
+        "-tilt" if tilt else "",
+        seed
     )
+    print name
     x, f, log = optimise(SensorObjective(
         nb_lenses=samples,
         fov=fov,
         consider_tilting=tilt
-    ), algo_name, name=name, gen=1000000)
+    ), algo_name, name=name, plot=False, gen=20000, seed=seed)
 
     print "CHAMP x:", x
     print "CHAMP f:", f
 
-    thetas, phis, alphas, w = SensorObjective.devectorise(x)
-
-    s = CompassSensor(thetas=thetas, phis=phis, alphas=alphas)
-    s.visualise_structure(s, title="%s-struct" % name, show=True)
+    # thetas, phis, alphas, w = SensorObjective.devectorise(x)
+    #
+    # s = CompassSensor(thetas=thetas, phis=phis, alphas=alphas)
+    # s.visualise_structure(s, title="%s-struct" % name, show=True)
 
 
 # archipelago
