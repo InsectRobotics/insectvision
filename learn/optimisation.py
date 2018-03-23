@@ -15,12 +15,19 @@ with open(__dir__ + 'global-optimisation-algorithms.yaml', 'rb') as config:
     go_algorithms = yaml.safe_load(config)
 
 
-def optimise(func, algo_name="sga", population=100, verbosity=100, plot=True, save=True, name=None, **kwargs):
+def optimise(func, algo_name="sga", population=100, verbosity=100,
+             plot=True, save=True, save_log_x=True, name=None, **kwargs):
 
     # Initialise the problem
     prob = pg.problem(func)
 
     # Initialise the algorithms
+    gen = kwargs.get("gen", 10000)
+    if save_log_x:
+        kwargs["gen"] = verbosity
+        iterations = gen / verbosity
+    else:
+        iterations = 1
     algorithm = get_algorithm(algo_name, **kwargs)
     a = pg.algorithm(algorithm)
     a.set_verbosity(verbosity)
@@ -34,8 +41,13 @@ def optimise(func, algo_name="sga", population=100, verbosity=100, plot=True, sa
 
     print a.get_name()
 
-    pop = a.evolve(pop)
-    log = np.array(a.extract(algorithm.__class__).get_log())
+    log = np.empty((0, len(get_log(algo_name))))
+    log_x = np.empty((0, func.ndim))
+    for it in xrange(iterations):
+        print "Iter:", it + 1,
+        pop = a.evolve(pop)
+        log = np.vstack([log, np.array(a.extract(algorithm.__class__).get_log())])
+        log_x = np.vstack([log_x, pop.champion_x])
 
     f = pop.champion_f
     x = pop.champion_x
@@ -44,7 +56,7 @@ def optimise(func, algo_name="sga", population=100, verbosity=100, plot=True, sa
         name = "%s-%s" % (datetime.now().strftime("%Y%m%d"), algo_name)
 
     if save:
-        np.savez_compressed(__datadir__ + "%s.npz" % name, x=x, f=f, log=log)
+        np.savez_compressed(__datadir__ + "%s.npz" % name, x=x, f=f, log=log, log_x=log_x)
 
     if plot:
         plot_log(log, title=name)
@@ -52,7 +64,7 @@ def optimise(func, algo_name="sga", population=100, verbosity=100, plot=True, sa
     return x, f, log
 
 
-def plot_log(log, algo_name="sga", title="Log"):
+def plot_log(log, algo_name="sga", label=None, title="Log", show=True):
     from matplotlib import pyplot as plt
 
     names = get_log(algo_name)
@@ -60,14 +72,20 @@ def plot_log(log, algo_name="sga", title="Log"):
     x = log[:, names.index(x_label)]
     obj_label = "gbest" if algo_name == "pso" else "best"
     obj = log[:, names.index(obj_label)]
+    if label is None:
+        label = "objective"
 
-    plt.figure(title)
-    plt.plot(x, obj, label="objective")
+    ax = plt.figure(title)
+    plt.plot(x, obj, label=label)
     # plt.plot(x, log[:, 3], label="convergence")
     # plt.legend()
     plt.xlabel(x_label)
     plt.ylabel("value")
-    plt.show()
+    plt.ylim([0, 90])
+    if show:
+        plt.show()
+
+    return ax
 
 
 def get_algorithm(name, **kwargs):

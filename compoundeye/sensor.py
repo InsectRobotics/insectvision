@@ -585,8 +585,9 @@ class CompassSensor(CompoundEye):
         """
 
         import matplotlib.pyplot as plt
+        from matplotlib.patches import Ellipse
 
-        xyz = sph2vec(sensor.theta_local, np.pi + sensor.phi_local, sensor.R_c, zenith=True)
+        xyz = sph2vec(sensor.theta_local, np.pi + sensor.phi_local, 1., zenith=True)
         xyz[0] *= -1.
 
         plt.figure(title)
@@ -595,14 +596,22 @@ class CompassSensor(CompoundEye):
             ax.plot(x, y, marker="o", color="white", markeredgecolor="black", markersize=10 * sensor.r_l)
             ax.plot(x, y, marker=(2, 0, np.rad2deg(angle)), color="red", markersize=10 * sensor.r_l)
             ax.plot(x, y, marker=(1, 2, np.rad2deg(angle-np.pi/2)), color="red", markersize=10 * sensor.r_l)
-        ax.plot(0, 0, marker="o", color="#00000060", markeredgecolor="grey", markersize=10*sensor.R_c)
+
+        diameter = 2.
+        # diameter = 2*np.sin(sensor.fov/2. + np.pi/np.log(sensor.nb_lenses))
+        outline = Ellipse(xy=np.zeros(2), width=diameter, height=diameter)
+        ax.add_artist(outline)
+        outline.set_clip_box(ax.bbox)
+        outline.set_alpha(.4)
+        outline.set_facecolor("grey")
+        # ax.plot(0, 0, marker="o", color="#00000060", markeredgecolor="grey", markersize=10*sensor.R_c)
         for angle, x, y in zip(sensor._aop_filter[xyz[2] >= 0], xyz[0][xyz[2] >= 0], xyz[1][xyz[2] >= 0]):
             ax.plot(x, y, marker="o", color="white", markeredgecolor="black", markersize=10 * sensor.r_l)
             ax.plot(x, y, marker=(2, 0, np.rad2deg(angle)), color="red", markersize=10 * sensor.r_l)
             ax.plot(x, y, marker=(1, 2, np.rad2deg(angle-np.pi/2)), color="red", markersize=10 * sensor.r_l)
 
-        ax.set_xlim([-sensor.R_c-sensor.r_l, sensor.R_c+sensor.r_l])
-        ax.set_ylim([-sensor.R_c-sensor.r_l, sensor.R_c+sensor.r_l])
+        ax.set_xlim([-1., 1.])
+        ax.set_ylim([-1., 1.])
         plt.axis("off")
         plt.tight_layout()
 
