@@ -63,6 +63,11 @@ if __name__ == "__main__":
     samples = 130
     fov = 150
     tilt = False
+    seed = 1
+    thetas = True
+    phis = False
+    alphas = False
+    ws = False
 
     name = "%s-%s-%03d-%03d%s" % (
         datetime.now().strftime("%Y%m%d"),
@@ -71,12 +76,24 @@ if __name__ == "__main__":
         fov,
         "-tilt" if tilt else ""
     )
-    so = SensorObjective(nb_lenses=samples, fov=fov, consider_tilting=tilt)
-    x, f, log = optimise(so, algo_name, name=name, gen=1000000)
+    if thetas and phis and alphas and ws:
+        name += "-%04d" % seed
+    else:
+        name += "-"
+        name += "t" if thetas else "f"
+        name += "t" if phis else "f"
+        name += "t" if alphas else "f"
+        name += "t" if ws else "f"
+
+    print name
+    so = SensorObjective(nb_lenses=samples, fov=fov, consider_tilting=tilt,
+                         b_thetas=thetas, b_phis=phis, b_alphas=alphas, b_ws=ws)
+    x, f, log = optimise(so, algo_name, name=name, verbosity=100, gen=500)
     # x = so.x_init
     # f = 0.
     # log = np.array([])
 
+    x = so.correct_vector(x)
     print "CHAMP x:", x
     print "CHAMP f:", f
 
@@ -135,21 +152,26 @@ if __name__ == "__main_2__":
     import matplotlib.pyplot as plt
     import os
 
+    algo_name = "sea"
     names = [
-        "sea-060-060",
-        "sea-130-150",
-        "sea-060-060-tilt",
-        "sea-130-150-tilt"
+        # "sea-060-060",
+        # "pso-060-060",
+        "%s-060-060" % algo_name,
+        "%s-130-150" % algo_name,
+        "%s-060-060-tilt" % algo_name,
+        "%s-130-150-tilt" % algo_name
     ]
     labels = [
+        # "SEA",
+        # "PSO",
         "normal - non-tilting",
         "wide - non-tilting",
         "normal - tilting",
         "wide - tilting",
     ]
 
-    log_names = get_log("sea")
-    gens = 20000
+    log_names = get_log(algo_name)
+    gens = 1000
     for c, (name, label) in enumerate(zip(names, labels)):
         x = np.empty((0, gens/100), dtype=np.float32)
         y = np.empty((0, gens/100), dtype=np.float32)
@@ -159,11 +181,13 @@ if __name__ == "__main_2__":
                     continue
                 print f
                 data = np.load(__datadir__ + f)
-                x_new = data["log"][:, log_names.index("gen")]
+                # print log_names
+                # x_new = data["log"][:, log_names.index("gen")]
+                x_new = np.arange(1, gens+1, 100)
                 y_new = data["log"][:, log_names.index("best")]
-                missing = gens/100 - x_new.shape[0]
+                missing = gens/100 - y_new.shape[0]
                 if missing > 0:
-                    x_new = np.append(x_new, np.full(missing, np.nan))
+                    # x_new = np.append(x_new, np.full(missing, np.nan))
                     y_new = np.append(y_new, np.full(missing, np.nan))
                 x = np.vstack([x, x_new[:gens/100]])
                 y = np.vstack([y, y_new[:gens/100]])
@@ -172,11 +196,11 @@ if __name__ == "__main_2__":
         y_mean = np.nanmean(y, axis=0)
         y_std = np.nanstd(y, axis=0) / np.sqrt(np.sum(~np.isnan(y), axis=0))
 
-        plt.figure("SEA")
+        plt.figure(algo_name)
         plt.fill_between(x_mean, y_mean - y_std, y_mean + y_std, facecolor="C%d" % c, alpha=.5)
         plt.plot(x_mean, y_mean, color="C%d" % c, label=label)
 
-    plt.figure("SEA")
+    plt.figure(algo_name)
     plt.legend()
     plt.xlabel("generations")
     plt.ylabel("objective function (degrees)")
@@ -193,9 +217,27 @@ if __name__ == "__main_2__":
     import os
     import re
 
-    label = "sea-060-060-tilt"
+    nb_lenses = 130
+    fov = 150
+    thetas = False
+    phis = False
+    alphas = False
+    ws = False
+    label = "sea-%03d-%03d" % (nb_lenses, fov)
+    style = "img"
 
-    p = re.compile(r"[0-9]{8}-%s-[0-9]{4}.npz" % label)
+    so = SensorObjective(nb_lenses, fov,
+                         b_thetas=thetas, b_phis=phis, b_alphas=alphas, b_ws=ws)
+
+    if thetas and phis and alphas and ws:
+        p = re.compile(r"[0-9]{8}-%s-[0-9]{4}.npz" % label)
+    else:
+        tag = ""
+        tag += "t" if thetas else "f"
+        tag += "t" if phis else "f"
+        tag += "t" if alphas else "f"
+        tag += "t" if ws else "f"
+        p = re.compile(r"[0-9]{8}-%s-%s.npz" % (label, tag))
     x_champ = None
     f_champ = None
     file_champ = None
@@ -205,7 +247,7 @@ if __name__ == "__main_2__":
             of = data["f"]
             if f_champ is None or of < f_champ:
                 f_champ = of
-                x_champ = data["x"]
+                x_champ = so.correct_vector(data["x"])
                 file_champ = f
 
     if f_champ is not None:
@@ -218,11 +260,18 @@ if __name__ == "__main_2__":
         s = CompassSensor(thetas=thetas, phis=phis, alphas=alphas)
         s.visualise_structure(s, title="%s-struct" % label, show=False)
 
-        cmap = cm.get_cmap("hsv")
-        plt.figure("weights", figsize=(10, 5))
-        for phi, wi in zip(alphas, w):
-            c = (phi % (2 * np.pi)) / (2 * np.pi)
-            plt.plot(wi, color=cmap(c))
-        plt.xlim([0, 7])
-        plt.ylim([-.5, .5])
+        if style == "plot":
+            cmap = cm.get_cmap("hsv")
+            plt.figure("weights", figsize=(10, 5))
+            for phi, wi in zip(alphas, w):
+                c = (phi % (2 * np.pi)) / (2 * np.pi)
+                plt.plot(wi, color=cmap(c))
+            plt.xlim([0, 7])
+            plt.ylim([-.5, .5])
+        elif style == "img":
+            plt.figure("weights-img", figsize=(10, 5))
+            plt.imshow(w.T, vmin=-1., vmax=1., cmap="coolwarm")
+            plt.yticks([0, 7], ["1", "8"])
+            ticks = np.linspace(0, w.shape[0]-1, 7)
+            plt.xticks(ticks, ["%d" % tick for tick in (ticks+1)])
         plt.show()

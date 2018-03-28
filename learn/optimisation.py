@@ -15,14 +15,16 @@ with open(__dir__ + 'global-optimisation-algorithms.yaml', 'rb') as config:
     go_algorithms = yaml.safe_load(config)
 
 
-def optimise(func, algo_name="sga", population=100, verbosity=100, plot=True, save=True, name=None, **kwargs):
+def optimise(func, algo_name="sga", population=100, verbosity=100,
+             plot=True, save=True, save_log_x=True, name=None,
+             **kwargs):
 
     # Initialise the problem
     prob = pg.problem(func)
 
     # Initialise the algorithms
     gen = kwargs.get("gen", 10000)
-    if True:
+    if save_log_x:
         kwargs["gen"] = verbosity
         iterations = gen / verbosity
     else:
@@ -42,15 +44,21 @@ def optimise(func, algo_name="sga", population=100, verbosity=100, plot=True, sa
 
     log = np.empty((0, len(get_log(algo_name))))
     log_x = np.empty((0, func.ndim))
-    print log.shape
+    labels = get_log(algo_name)
+    row_format = "{:>7}" + "{:>15}" * (len(labels)-1)
+    # if save_log_x and verbosity is not None and verbosity > 0:
+    #     print row_format.format(*[label.capitalize() + ":" for label in labels])
     for it in xrange(iterations):
-        print "Iter:", it + 1,
         pop = a.evolve(pop)
-        log = np.vstack([log, np.array(a.extract(algorithm.__class__).get_log())])
+        new_log = np.array(a.extract(algorithm.__class__).get_log())
+        new_log[:, labels.index("gen")] += it * verbosity
+        if save_log_x and verbosity is not None and verbosity > 0:
+            print row_format.format(*["%.4f" % e for e in new_log[0]])
+        log = np.vstack([log, new_log])
         log_x = np.vstack([log_x, pop.champion_x])
 
     f = pop.champion_f
-    x = pop.champion_x
+    x = func.correct_vector(pop.champion_x)
 
     if name is None:
         name = "%s-%s" % (datetime.now().strftime("%Y%m%d"), algo_name)

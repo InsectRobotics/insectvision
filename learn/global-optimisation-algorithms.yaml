@@ -68,7 +68,7 @@ sea:                 # (N+1)-ES Simple Evolutionary Algorithm
     - best
     - improvement
     - mutations
-sga:                 # Simple Genetic Algorith
+sga:                 # Simple Genetic Algorithm
   class: pg.sga
   params:
     gen: 10000         # number of generations
