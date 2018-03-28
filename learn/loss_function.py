@@ -14,7 +14,8 @@ class SensorObjective(object):
                     [0.1206, -2.5771],
                     [-0.0670, 0.3703]])
 
-    def __init__(self, nb_lenses=60, fov=60, nb_tl2=16, nb_tb1=8, consider_tilting=False):
+    def __init__(self, nb_lenses=60, fov=60, nb_tb1=8, consider_tilting=False,
+                 b_thetas=True, b_phis=True, b_alphas=True, b_ws=True):
         # Initialise the position and orientation of the lenses with fibonacci distribution
         thetas, phis = fibonacci_sphere(samples=nb_lenses, fov=fov)
         thetas = (thetas + np.pi) % (2 * np.pi) - np.pi
@@ -23,33 +24,59 @@ class SensorObjective(object):
 
         # initialise weights of the computational model
         phi_tb1 = np.linspace(0., 2 * np.pi, nb_tb1, endpoint=False)  # TB1 preference angles
-        # phi_tl2 = np.linspace(0., 4 * np.pi, nb_tl2, endpoint=False)  # TL2 preference angles
-        # w_tl2 = 1. / nb_lenses * np.sin(phi_tl2[np.newaxis] - alphas[:, np.newaxis])
-        # w_tb1 = float(nb_tb1) / float(nb_tl2) * np.cos(phi_tb1[np.newaxis] - phi_tl2[:, np.newaxis])
-        # w = w_tl2.dot(w_tb1)
-
         w = nb_tb1 / (2. * nb_lenses) * np.sin(phi_tb1[np.newaxis] - alphas[:, np.newaxis])
 
         # create initial feature-vector
         self.x_init = self.vectorise(thetas, phis, alphas, w)
+        self.theta_init = thetas
+        self.phi_init = phis
+        self.w_f = lambda a: nb_tb1 / (2. * nb_lenses) * np.maximum(np.sin(phi_tb1[np.newaxis] - a[:, np.newaxis]), 0.)
         self.ndim = (3 + nb_tb1) * nb_lenses  # number of features
         self.lb = np.hstack((  # lower bound of parameters
-            np.zeros(nb_lenses),
-            np.full(nb_lenses, -np.pi),
-            np.full(nb_lenses, -np.pi),
-            -np.ones(nb_tb1 * nb_lenses)
+            np.zeros(nb_lenses),          # theta
+            np.full(nb_lenses, -np.pi),   # phi
+            np.full(nb_lenses, -np.pi),   # alpha
+            -np.ones(nb_tb1 * nb_lenses)  # weights
         ))
         self.ub = np.hstack((  # upper bound of parameters
-            np.full(nb_lenses, np.deg2rad(fov) / 2),
-            np.full(nb_lenses, np.pi),
-            np.full(nb_lenses, np.pi),
-            np.ones(nb_tb1 * nb_lenses)
+            np.full(nb_lenses, np.deg2rad(fov) / 2),  # theta
+            np.full(nb_lenses, np.pi),                # phi
+            np.full(nb_lenses, np.pi),                # alpha
+            np.ones(nb_tb1 * nb_lenses)               # weights
         ))
+        self._thetas = b_thetas
+        self._phis = b_phis
+        self._alphas = b_alphas
+        self._ws = b_ws
         self.__consider_tilting = consider_tilting
 
+    def correct_vector(self, v):
+        l = v.shape[0] / 11
+        if not self._thetas:
+            v[:l] = self.theta_init
+        if not self._phis:
+            v[l:2*l] = self.phi_init
+        if not self._alphas:
+            v[2*l:3*l] = (v[l:2*l] + 3 * np.pi / 2) % (2 * np.pi) - np.pi
+        if not self._ws:
+            v[3*l:] = self.w_f(v[2*l:3*l]).flatten()
+        return v
+
     def fitness(self, x):
-        theta, phi, alpha, w = self.devectorise(x)
+        theta, phi, alpha, w = self.devectorise(self.correct_vector(x))
         return [self._fitness(theta, phi, alpha, w=w, tilt=self.__consider_tilting)]
+
+    def gradient(self, x):
+        return pg.estimate_gradient_h(self.fitness, x)
+
+    def get_bounds(self):
+        return list(self.lb), list(self.ub)
+
+    def get_name(self):
+        return "Sensor Objective Function"
+
+    def get_extra_info(self):
+        return "\tDimensions: % 4d" % self.ndim
 
     @staticmethod
     def _fitness(theta, phi, alpha, w=None, samples=1000, tilt=False, error=angdist):
@@ -114,18 +141,6 @@ class SensorObjective(object):
         # plt.show()
 
         return np.rad2deg(d.mean())
-
-    def gradient(self, x):
-        return pg.estimate_gradient_h(self.fitness, x)
-
-    def get_bounds(self):
-        return list(self.lb), list(self.ub)
-
-    def get_name(self):
-        return "Sensor Objective Function"
-
-    def get_extra_info(self):
-        return "\tDimensions: % 4d" % self.ndim
 
     @staticmethod
     def encode(theta_s, phi_s, theta, phi, tau=2., c1=.6, c2=4.):
