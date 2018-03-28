@@ -59,11 +59,11 @@ if __name__ == "__main_2__":
 # single
 if __name__ == "__main__":
 
-    algo_name = "sea"
+    algo_name = "pso"
     samples = 130
     fov = 150
     tilt = False
-    seed = 6
+    seed = 1
 
     name = "%s-%s-%03d-%03d%s-%04d" % (
         datetime.now().strftime("%Y%m%d"),
@@ -76,18 +76,19 @@ if __name__ == "__main__":
 
     print name
     so = SensorObjective(nb_lenses=samples, fov=fov, consider_tilting=tilt)
-    x, f, log = optimise(so, algo_name, name=name, gen=20000, seed=seed)
+    x, f, log = optimise(so, algo_name, name=name, gen=1000, seed=seed,
+                         save_log_x=False, plot=False)
     # x = so.x_init
     # f = 0.
     # log = np.array([])
 
-    print "CHAMP x:", x
-    print "CHAMP f:", f
+    # print "CHAMP x:", x
+    # print "CHAMP f:", f
 
-    thetas, phis, alphas, w = SensorObjective.devectorise(x)
+    # thetas, phis, alphas, w = SensorObjective.devectorise(x)
 
-    s = CompassSensor(thetas=thetas, phis=phis, alphas=alphas)
-    s.visualise_structure(s, title="%s-struct" % name, show=True)
+    # s = CompassSensor(thetas=thetas, phis=phis, alphas=alphas)
+    # s.visualise_structure(s, title="%s-struct" % name, show=True)
 
 
 # archipelago
@@ -163,11 +164,12 @@ if __name__ == "__main_2__":
                     continue
                 print f
                 data = np.load(__datadir__ + f)
-                x_new = data["log"][:, log_names.index("gen")]
+                # x_new = data["log"][:, log_names.index("gen")]
+                x_new = np.arange(1, gens+1, 100)
                 y_new = data["log"][:, log_names.index("best")]
-                missing = gens/100 - x_new.shape[0]
+                missing = gens/100 - y_new.shape[0]
                 if missing > 0:
-                    x_new = np.append(x_new, np.full(missing, np.nan))
+                    # x_new = np.append(x_new, np.full(missing, np.nan))
                     y_new = np.append(y_new, np.full(missing, np.nan))
                 x = np.vstack([x, x_new[:gens/100]])
                 y = np.vstack([y, y_new[:gens/100]])

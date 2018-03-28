@@ -46,7 +46,9 @@ def optimise(func, algo_name="sga", population=100, verbosity=100,
     for it in xrange(iterations):
         print "Iter:", it + 1,
         pop = a.evolve(pop)
-        log = np.vstack([log, np.array(a.extract(algorithm.__class__).get_log())])
+        new_log = np.array(a.extract(algorithm.__class__).get_log())
+        # new_log[get_log(algo_name).index("gen")] += it * verbosity
+        log = np.vstack([log, new_log])
         log_x = np.vstack([log_x, pop.champion_x])
 
     f = pop.champion_f
