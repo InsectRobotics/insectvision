@@ -11,6 +11,34 @@ def point2rotmat(p):
     return np.eye(3) + v_x + np.matmul(v_x, v_x) / (1 + c)
 
 
+def sph2rotmat(theta, phi):
+    r00 = 1. - 2. * np.square(np.sin(theta / 2.) * np.sin(phi))
+    r01 = -np.square(np.sin(theta / 2.)) * np.sin(2 * phi)
+    r02 = np.sin(theta) * np.sin(phi)
+    r10 = -np.square(np.sin(theta/2.)) * np.sin(2 * phi)
+    r11 = np.cos(theta) * np.square(np.cos(phi)) + np.square(np.sin(phi))
+    r12 = np.sin(theta) * np.cos(phi)
+    r20 = -np.sin(theta) * np.sin(phi)
+    r21 = -np.sin(theta) * np.cos(phi)
+    r22 = np.cos(theta)
+    return np.array([[r00, r01, r02],
+                     [r10, r11, r12],
+                     [r20, r21, r22]])
+
+
+def tilt(theta_t, phi_t, theta, phi):
+    cei, sei, cet, set = np.cos(theta), np.sin(theta), np.cos(theta_t), np.sin(theta_t)
+    cai, sai, cat, sat = np.cos(phi), np.sin(phi), np.cos(phi_t), np.sin(phi_t)
+    cad, sad = np.cos(phi_t - phi), np.sin(phi_t - phi)
+
+    ej = np.arccos(cei * cet + sei * set * cad)
+    # aj = np.arctan2(cei * cai * cet * cat * cat + sei * sat * (sai * cet * cat - sad) - cei * set * cat,
+    #                 cet * sat * sei * cad - cat * sei * sad - set * sat * cei)
+    aj = np.arctan2(cet * sat * sei * cad - cat * sei * sad - set * sat * cei,
+                    cei * cai * cet * cat * cat + sei * sat * (sai * cet * cat - sad) - cei * set * cat)
+    return ej, aj
+
+
 def sph2vec(theta, phi=None, rho=1., zenith=False):
     """
     Transforms the spherical coordinates to a cartesian 3D vector.
@@ -62,6 +90,11 @@ def vec2sph(vec, y=None, z=None, zenith=False):
 
     theta = np.arccos(z)
     phi = np.arctan2(x, y)
+
+    if vec.ndim == 1 and np.isclose(theta, 0):
+        phi = 0.
+    elif vec.ndim > 1:
+        phi[np.isclose(theta, 0)] = 0.
 
     if not zenith:
         theta = np.pi/2 - theta
@@ -177,8 +210,16 @@ def azirot(vec, phi):
 
 
 if __name__ == "__main__":
-    v = np.array([[1], [0], [0]], dtype=float)
-    # v = np.array([1, 0, 0], dtype=float)
-    s = vec2sph(v)
-    print np.rad2deg(s)
-    print sph2vec(s)
+    # v = np.array([[1], [0], [0]], dtype=float)
+    # v = np.array([0, 1, 0], dtype=float)
+    phi, theta = 3*np.pi/4, np.pi/3.
+    v = sph2vec(theta, phi, zenith=True)
+    print theta, phi
+    R1 = point2rotmat(v)
+    R2 = sph2rotmat(theta, phi)
+
+    print R1
+    print R2
+    print np.isclose(R1, R2)
+
+

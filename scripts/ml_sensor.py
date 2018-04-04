@@ -1,12 +1,27 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from sensor import CompassSensor, NB_EN, decode_sun
+#!/usr/bin/env python
+# Script that trains and visualises the progress and results of training
+# of the sensor weights using back-propagation.
+#
+
+from compoundeye.sensor import CompassSensor, NB_EN, decode_sun
 from sky import get_seville_observer
-from datetime import datetime, timedelta
 from learn.whitening import zca, pca
 from learn import get_loss
 from code.compass import decode_sph
+
+from datetime import datetime, timedelta
+import numpy as np
+import matplotlib.pyplot as plt
 import os
+
+__author__ = "Evripidis Gkanias"
+__copyright__ = "Copyright 2018, The Invisible Cues Project"
+__credits__ = ["Evripidis Gkanias"]
+__license__ = "GPL"
+__version__ = "1.0.0"
+__maintainer__ = "Evripidis Gkanias"
+__email__ = "ev.gkanias@ed.ac.uk"
+__status__ = "Production"
 
 __dir__ = os.path.dirname(os.path.realpath(__file__)) + "/"
 __datadir__ = __dir__ + "../data/datasets/"

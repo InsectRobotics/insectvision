@@ -1,9 +1,23 @@
+#!/usr/bin/env python
+# Loss functions for data in spherical representations
+#
+
 from code import decode_sph
 from compoundeye.geometry import fibonacci_sphere
 from sphere import angle_between, sph2vec, vec2sph, angdist
-from sphere.transform import point2rotmat
+from sphere.transform import point2rotmat, tilt as transtilt
+
 import numpy as np
 import pygmo as pg
+
+__author__ = "Evripidis Gkanias"
+__copyright__ = "Copyright 2018, The Invisible Cues Project"
+__credits__ = ["Evripidis Gkanias"]
+__license__ = "GPL"
+__version__ = "1.0.0"
+__maintainer__ = "Evripidis Gkanias"
+__email__ = "ev.gkanias@ed.ac.uk"
+__status__ = "Production"
 
 
 class SensorObjective(object):
@@ -24,7 +38,7 @@ class SensorObjective(object):
 
         # initialise weights of the computational model
         phi_tb1 = np.linspace(0., 2 * np.pi, nb_tb1, endpoint=False)  # TB1 preference angles
-        w = nb_tb1 / (2. * nb_lenses) * np.sin(phi_tb1[np.newaxis] - alphas[:, np.newaxis])
+        w = nb_tb1 / (2. * nb_lenses) * np.sin(phi_tb1[np.newaxis] - alphas[:, np.newaxis]) * np.sin(thetas)
 
         # create initial feature-vector
         self.x_init = self.vectorise(thetas, phis, alphas, w)
@@ -95,6 +109,9 @@ class SensorObjective(object):
 
         theta_s, phi_s = fibonacci_sphere(samples=samples, fov=180)
         d = np.zeros((samples, angles.shape[0]))
+        phi_tb1 = np.linspace(0., 2 * np.pi, 8, endpoint=False) + np.pi/2  # TB1 preference angles
+        # shift = 0.
+        shift = np.pi/6
 
         for j, (theta_t, phi_t) in enumerate(angles):
             v_t = sph2vec(theta_t, phi_t, zenith=True)
@@ -102,45 +119,91 @@ class SensorObjective(object):
             v = sph2vec(theta, phi, zenith=True)
             v_a = sph2vec(np.full(alpha.shape[0], np.pi/2), alpha, zenith=True)
             R = point2rotmat(v_t)
-            v_s_ = R.dot(v_s)
-            theta_s_, phi_s_, _ = vec2sph(v_s_, zenith=True)
+            theta_s_, phi_s_, _ = vec2sph(R.dot(v_s), zenith=True)
+            # theta_s_, phi_s_ = transtilt(-theta_t, -phi_t, theta=theta_s, phi=phi_s)
 
             theta_, phi_, _ = vec2sph(R.T.dot(v), zenith=True)
+            # theta_, phi_ = transtilt(theta_t, phi_t, theta=theta, phi=phi)
             _, alpha_, _ = vec2sph(R.T.dot(v_a), zenith=True)
+            # _, alpha_ = transtilt(theta_t, phi_t, theta=np.pi/2, phi=alpha)
+
+
+            if w is None:
+                # Gate
+                g = np.sqrt(1 - np.square(np.cos(theta + shift) * np.cos(theta_t) +
+                                          np.sin(theta + shift) * np.sin(theta_t) * np.cos(np.absolute(phi_t - phi))))
+                # alternative form
+                # g = np.sin(theta_)  # dynamic gating
+
+                # other versions
+                # g = np.sin(theta)  # static gating
+                # g = np.ones_like(theta)  # uniform - no gating
+
+                # from compoundeye import CompassSensor
+                # s = CompassSensor(thetas=theta, phis=phi, alphas=alpha)
+                # CompassSensor.visualise(s, sL=g, colormap="Reds", sides=False, scale=None,
+                #                         title="E%03d-A%03d" % (np.rad2deg(theta_t), np.rad2deg(phi_t)))
+
+                w = -8. / (2. * 60.) * np.cos(phi_tb1[np.newaxis] - alpha[:, np.newaxis]) * g[:, np.newaxis]
+                # w = np.maximum(w, 0)
 
             for i, (e, a, e_org, a_org) in enumerate(zip(theta_s_, phi_s_, theta_s, phi_s)):
                 _, dop, aop = SensorObjective.encode(e_org, a_org, theta_, phi_)
                 ele, azi = SensorObjective.decode(dop, aop, alpha_, w=w)
                 d[i, j] = np.absolute(error(np.array([e, a]), np.array([ele, azi])))
 
-        # import matplotlib.pyplot as plt
-        #
-        # for ang, dd in zip(angles[[0, 7, 15]], d.T[[0, 7, 15]]):
-        #     plt.figure("%03d-%03d" % (np.rad2deg(ang[0]), np.rad2deg(ang[1])))
-        #     plt.subplot(111, polar=True)
-        #     plt.scatter(phi_s, np.rad2deg(theta_s),
-        #                 marker="o", c=dd/(np.pi/2), cmap="Reds", vmin=0, vmax=1)
+        d_deg = np.rad2deg(d)
+
+        import matplotlib.pyplot as plt
+
+        # plt.figure("Tilts", figsize=(10, 15))
+        # for i, ang, dd in zip(range(angles.shape[0]), angles, d.T):
+        #     ax = plt.subplot2grid((5, 4), ((i-1) // 4, (i-1) % 4), polar=True)
+        #     ax.set_theta_zero_location("N")
+        #     ax.set_theta_direction(-1)
+        #     plt.scatter(phi_s, np.rad2deg(theta_s), marker=".", c=dd, cmap="Reds", vmin=0, vmax=np.pi/2)
+        #     plt.scatter(ang[1]+np.pi, np.rad2deg(ang[0]), marker="o", c="yellow", edgecolors="black")
+        #     plt.title(r"$\epsilon_t=%03d, \alpha_t=%03d$" % tuple(np.rad2deg(ang)))
         #     plt.axis("off")
-        #
+        # plt.subplot2grid((5, 4), (4, 0), colspan=3)
+        # plt.imshow([np.arange(0, np.pi/2, np.pi/180)] * 3, cmap="Reds")
+        # plt.yticks([])
+        # plt.xticks([0, 45, 89], [r"0", r"$\frac{\pi}{4}$", r"$\geq\frac{\pi}{2}$"])
+        # plt.show()
+
+        plt.figure("Tilts", figsize=(10, 3))
+        for i, ang, dd in zip(range(3), angles[[0, 1, 9]], d.T[[0, 1, 9]]):
+            ax = plt.subplot2grid((1, 10), (0, i * 3), colspan=3, polar=True)
+            ax.set_theta_zero_location("N")
+            ax.set_theta_direction(-1)
+            plt.scatter(phi_s, np.rad2deg(theta_s), marker="o", c=dd, cmap="Reds", vmin=0, vmax=np.pi/2)
+            plt.scatter(ang[1]+np.pi, np.rad2deg(ang[0]), marker="o", c="yellowgreen", edgecolors="black")
+            plt.text(-np.deg2rad(50), 145, ["A.", "B.", "C."][i], fontsize=12)
+            plt.axis("off")
+        plt.subplot2grid((3, 10), (1, 9))
+        plt.imshow(np.array([np.arange(0, np.pi/2, np.pi/180)] * 10).T, cmap="Reds")
+        plt.xticks([])
+        plt.yticks([0, 45, 89], [r"0", r"$\frac{\pi}{4}$", r"$\geq\frac{\pi}{2}$"])
+        plt.show()
+
         # plt.figure("cost-function")
         # w = np.bartlett(10)
         # w /= w.sum()
         # d_000 = np.convolve(w, np.rad2deg(d[:, 0]), mode="same")
-        # plt.plot(np.rad2deg(theta_s), d_000, label="tilt-%03d" % np.rad2deg(angles[0, 0]))
+        # plt.plot(np.rad2deg(theta_s), d_000, label=r"$0^\circ$")
         # if angles.shape[0] > 1:
-        #     d_030 = np.convolve(w, np.rad2deg(d[:, 7]), mode="same")
-        #     d_060 = np.convolve(w, np.rad2deg(d[:, 15]), mode="same")
-        #     plt.plot(np.rad2deg(theta_s), d_030, label="tilt-%03d" % np.rad2deg(angles[3, 0]))
-        #     plt.plot(np.rad2deg(theta_s), d_060, label="tilt-%03d" % np.rad2deg(angles[11, 0]))
+        #     d_030 = np.convolve(w, np.rad2deg(d[:, 1]), mode="same")
+        #     d_060 = np.convolve(w, np.rad2deg(d[:, 9]), mode="same")
+        #     plt.plot(np.rad2deg(theta_s), d_030, label=r"$30^\circ$")
+        #     plt.plot(np.rad2deg(theta_s), d_060, label=r"$60^\circ$")
         #     plt.legend()
         # plt.xlim([0, 90])
         # plt.ylim([0, 180])
-        # plt.xlabel("sun elevation (degrees)")
-        # plt.ylabel("cost (degrees)")
-        #
+        # plt.xlabel(r"sun elevation ($^\circ$)")
+        # plt.ylabel(r"cost ($^\circ$)")
         # plt.show()
 
-        return np.rad2deg(d.mean())
+        return d_deg.mean()
 
     @staticmethod
     def encode(theta_s, phi_s, theta, phi, tau=2., c1=.6, c2=4.):

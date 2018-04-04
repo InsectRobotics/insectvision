@@ -1,11 +1,25 @@
-import numpy as np
-from sensor import CompassSensor, NB_EN, decode_sun
+#!/usr/bin/env python
+# Script that tests the performance of the sensor for different set-up.
+# It requires to have the data-set already created using the "create_sensor_dataset.py" script.
+#
+
+from compoundeye.sensor import CompassSensor, NB_EN, decode_sun
 from learn import get_loss
 from sky import get_seville_observer, SkyModel
-from datetime import datetime, timedelta
 from learn.whitening import pca, zca
+
+from datetime import datetime, timedelta
+import numpy as np
 import os
 
+__author__ = "Evripidis Gkanias"
+__copyright__ = "Copyright 2018, The Invisible Cues Project"
+__credits__ = ["Evripidis Gkanias"]
+__license__ = "GPL"
+__version__ = "1.0.0"
+__maintainer__ = "Evripidis Gkanias"
+__email__ = "ev.gkanias@ed.ac.uk"
+__status__ = "Production"
 
 __dir__ = os.path.dirname(os.path.realpath(__file__)) + "/"
 __datadir__ = __dir__ + "../data/datasets/"

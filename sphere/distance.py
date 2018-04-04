@@ -16,9 +16,13 @@ def angdist(v1, v2, zenith=True):
         v2 = sph2vec(v2, zenith=zenith)
     v1 /= np.linalg.norm(v1, axis=0)
     v2 /= np.linalg.norm(v2, axis=0)
-    d = np.dot(v1.T, v2)
-    if d.ndim > 1:
-        d = d.diagonal()
+
+    if v1.ndim > 1 or v2.ndim > 1:
+        d = np.einsum('ij,ij->j', v1, v2)
+    else:
+        d = np.dot(v1.T, v2)
+    # if d.ndim > 1:
+    #     d = d.diagonal()
     return np.absolute(np.arccos(d))
 
 
