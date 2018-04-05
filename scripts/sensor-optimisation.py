@@ -40,17 +40,16 @@ if __name__ == "__main__":
         # theta, phi = fibonacci_sphere(samples=60, fov=60)
         alpha = (phi - np.pi/2) % (2 * np.pi) - np.pi
         phi_tb1 = np.linspace(0., 2 * np.pi, 8, endpoint=False)  # TB1 preference angles
-        w = -8 / (2. * 60) * np.cos(phi_tb1[np.newaxis] - phi[:, np.newaxis]) \
-            * np.maximum(np.sin(theta[:, np.newaxis]), 0)
+        w = -8 / (2. * 60) * np.cos(phi_tb1[np.newaxis] - phi[:, np.newaxis]) * np.sin(theta[:, np.newaxis]) ** 4
 
-        w = np.maximum(w, 0)
+        # w = np.maximum(w, 0)
         # cost = SensorObjective._fitness(theta, phi, alpha, w=w, tilt=tilt)  # , error=azidist)
-        cost = SensorObjective._fitness(theta, phi, alpha, w=np.maximum(w, 0), tilt=tilt, error=azidist)
+        cost = SensorObjective._fitness(theta, phi, alpha, tilt=tilt, error=azidist)
 
         print cost
 
         s = CompassSensor(thetas=theta, phis=phi, alphas=alpha)
-        # CompassSensor.visualise(s, sL=10.*w[:, 0]+.5, colormap="coolwarm")
+        # CompassSensor.visualise(s, sL=100.*np.sqrt(np.square(w).sum(axis=1)), colormap="Reds")
 
         # if tilt:
         #     angles = np.array([

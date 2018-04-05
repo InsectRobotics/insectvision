@@ -111,7 +111,10 @@ class SensorObjective(object):
         d = np.zeros((samples, angles.shape[0]))
         phi_tb1 = np.linspace(0., 2 * np.pi, 8, endpoint=False) + np.pi/2  # TB1 preference angles
         # shift = 0.
-        shift = np.pi/6
+        order = 16
+        # order = 10
+        shift = np.deg2rad(54)
+        # shift = np.deg2rad(19)
 
         for j, (theta_t, phi_t) in enumerate(angles):
             v_t = sph2vec(theta_t, phi_t, zenith=True)
@@ -127,25 +130,25 @@ class SensorObjective(object):
             _, alpha_, _ = vec2sph(R.T.dot(v_a), zenith=True)
             # _, alpha_ = transtilt(theta_t, phi_t, theta=np.pi/2, phi=alpha)
 
-
-            if w is None:
-                # Gate
-                g = np.sqrt(1 - np.square(np.cos(theta + shift) * np.cos(theta_t) +
-                                          np.sin(theta + shift) * np.sin(theta_t) * np.cos(np.absolute(phi_t - phi))))
-                # alternative form
-                # g = np.sin(theta_)  # dynamic gating
+            if w is None or True:
+                # Gate + Shift
+                g = np.power(np.sqrt(1 - np.square(
+                    np.cos(theta + shift) * np.cos(theta_t) +
+                    np.sin(theta + shift) * np.sin(theta_t) * np.cos(phi_t - phi)
+                )), order)
+                # alternative form (w/o shift)
+                # g = np.power(np.sin(theta_ + shift), order)  # dynamic gating
 
                 # other versions
                 # g = np.sin(theta)  # static gating
                 # g = np.ones_like(theta)  # uniform - no gating
 
-                # from compoundeye import CompassSensor
-                # s = CompassSensor(thetas=theta, phis=phi, alphas=alpha)
-                # CompassSensor.visualise(s, sL=g, colormap="Reds", sides=False, scale=None,
-                #                         title="E%03d-A%03d" % (np.rad2deg(theta_t), np.rad2deg(phi_t)))
-
+                from compoundeye import CompassSensor
+                s = CompassSensor(thetas=theta, phis=phi, alphas=alpha)
+                CompassSensor.visualise(s, sL=g, colormap="Reds", sides=False, scale=None,
+                                        title="E%03d-A%03d" % (np.rad2deg(theta_t), np.rad2deg(phi_t)))
+                g = np.maximum(g, 0)
                 w = -8. / (2. * 60.) * np.cos(phi_tb1[np.newaxis] - alpha[:, np.newaxis]) * g[:, np.newaxis]
-                # w = np.maximum(w, 0)
 
             for i, (e, a, e_org, a_org) in enumerate(zip(theta_s_, phi_s_, theta_s, phi_s)):
                 _, dop, aop = SensorObjective.encode(e_org, a_org, theta_, phi_)
@@ -186,22 +189,22 @@ class SensorObjective(object):
         plt.yticks([0, 45, 89], [r"0", r"$\frac{\pi}{4}$", r"$\geq\frac{\pi}{2}$"])
         plt.show()
 
-        # plt.figure("cost-function")
-        # w = np.bartlett(10)
-        # w /= w.sum()
-        # d_000 = np.convolve(w, np.rad2deg(d[:, 0]), mode="same")
-        # plt.plot(np.rad2deg(theta_s), d_000, label=r"$0^\circ$")
-        # if angles.shape[0] > 1:
-        #     d_030 = np.convolve(w, np.rad2deg(d[:, 1]), mode="same")
-        #     d_060 = np.convolve(w, np.rad2deg(d[:, 9]), mode="same")
-        #     plt.plot(np.rad2deg(theta_s), d_030, label=r"$30^\circ$")
-        #     plt.plot(np.rad2deg(theta_s), d_060, label=r"$60^\circ$")
-        #     plt.legend()
-        # plt.xlim([0, 90])
-        # plt.ylim([0, 180])
-        # plt.xlabel(r"sun elevation ($^\circ$)")
-        # plt.ylabel(r"cost ($^\circ$)")
-        # plt.show()
+        plt.figure("cost-function")
+        w = np.bartlett(10)
+        w /= w.sum()
+        d_000 = np.convolve(w, np.rad2deg(d[:, 0]), mode="same")
+        plt.plot(np.rad2deg(theta_s), d_000, label=r"$0^\circ$")
+        if angles.shape[0] > 1:
+            d_030 = np.convolve(w, np.rad2deg(d[:, 1]), mode="same")
+            d_060 = np.convolve(w, np.rad2deg(d[:, 9]), mode="same")
+            plt.plot(np.rad2deg(theta_s), d_030, label=r"$30^\circ$")
+            plt.plot(np.rad2deg(theta_s), d_060, label=r"$60^\circ$")
+            plt.legend()
+        plt.xlim([0, 90])
+        plt.ylim([0, 180])
+        plt.xlabel(r"sun elevation ($^\circ$)")
+        plt.ylabel(r"cost ($^\circ$)")
+        plt.show()
 
         return d_deg.mean()
 
