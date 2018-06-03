@@ -41,7 +41,7 @@ if __name__ == "__main__":
     start_day = 21
     delta = timedelta(hours=1)
     mode = "cross"
-    noise = 0.
+    noise = 0.5
     fibonacci = True
     tilted = False
     fov_deg = 60

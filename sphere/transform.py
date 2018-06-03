@@ -11,11 +11,12 @@ def point2rotmat(p):
     return np.eye(3) + v_x + np.matmul(v_x, v_x) / (1 + c)
 
 
+# obsolete
 def sph2rotmat(theta, phi):
     r00 = 1. - 2. * np.square(np.sin(theta / 2.) * np.sin(phi))
     r01 = -np.square(np.sin(theta / 2.)) * np.sin(2 * phi)
     r02 = np.sin(theta) * np.sin(phi)
-    r10 = -np.square(np.sin(theta/2.)) * np.sin(2 * phi)
+    r10 = -np.square(np.sin(theta / 2.)) * np.sin(2 * phi)
     r11 = np.cos(theta) * np.square(np.cos(phi)) + np.square(np.sin(phi))
     r12 = np.sin(theta) * np.cos(phi)
     r20 = -np.sin(theta) * np.sin(phi)
@@ -27,16 +28,17 @@ def sph2rotmat(theta, phi):
 
 
 def tilt(theta_t, phi_t, theta, phi):
-    cei, sei, cet, set = np.cos(theta), np.sin(theta), np.cos(theta_t), np.sin(theta_t)
-    cai, sai, cat, sat = np.cos(phi), np.sin(phi), np.cos(phi_t), np.sin(phi_t)
-    cad, sad = np.cos(phi_t - phi), np.sin(phi_t - phi)
 
-    ej = np.arccos(cei * cet + sei * set * cad)
-    # aj = np.arctan2(cei * cai * cet * cat * cat + sei * sat * (sai * cet * cat - sad) - cei * set * cat,
-    #                 cet * sat * sei * cad - cat * sei * sad - set * sat * cei)
-    aj = np.arctan2(cet * sat * sei * cad - cat * sei * sad - set * sat * cei,
-                    cei * cai * cet * cat * cat + sei * sat * (sai * cet * cat - sad) - cei * set * cat)
-    return ej, aj
+    x = np.sin(theta) * (np.sin(phi) - 2 * np.square(np.sin(theta_t / 2)) * np.sin(phi_t) * np.cos(phi_t - phi)) +\
+        np.sin(theta_t) * np.cos(theta) * np.sin(phi_t)
+    y = -np.sin(theta) * np.sin(phi) * np.square(np.sin(theta_t / 2.)) * np.sin(2 * phi_t) +\
+        np.sin(theta) * np.cos(phi) * (np.cos(theta_t) * np.square(np.cos(phi_t)) + np.square(np.sin(phi_t))) +\
+        np.cos(theta) * np.sin(theta_t) * np.cos(phi_t)
+    z = np.cos(theta_t) * np.cos(theta) - np.sin(theta_t) * np.sin(theta) * np.cos(phi_t - phi)
+
+    e = np.arccos(z)
+    a = np.arctan2(x, y)
+    return e, a
 
 
 def sph2vec(theta, phi=None, rho=1., zenith=False):
@@ -210,16 +212,22 @@ def azirot(vec, phi):
 
 
 if __name__ == "__main__":
+    from compoundeye.geometry import fibonacci_sphere
     # v = np.array([[1], [0], [0]], dtype=float)
     # v = np.array([0, 1, 0], dtype=float)
-    phi, theta = 3*np.pi/4, np.pi/3.
-    v = sph2vec(theta, phi, zenith=True)
-    print theta, phi
-    R1 = point2rotmat(v)
-    R2 = sph2rotmat(theta, phi)
+    theta_s, phi_s = fibonacci_sphere(samples=1000, fov=161)
+    phi_s = phi_s[theta_s <= np.pi/2]
+    theta_s = theta_s[theta_s <= np.pi/2]
+    samples = theta_s.size
 
-    print R1
-    print R2
-    print np.isclose(R1, R2)
+    theta_t, phi_t = np.pi/4, np.pi/4
+
+    v_s = sph2vec(theta_s, phi_s, zenith=True)
+    R = sph2rotmat(theta_t, phi_t)
+    theta_s_1, phi_s_1, _ = vec2sph(R.dot(v_s), zenith=True)
+    theta_s_2, phi_s_2 = tilt(theta_t, phi_t, theta_s, phi_s)
+
+    print "Elevation:",  np.all(np.isclose(theta_s_1, theta_s_2)),
+    print "--- Azimuth:", np.all(np.isclose(phi_s_1, phi_s_2))
 
 

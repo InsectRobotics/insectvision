@@ -25,7 +25,9 @@ __maintainer__ = "Evripidis Gkanias"
 __email__ = "ev.gkanias@ed.ac.uk"
 __status__ = "Production"
 
-mode = "init"
+# mode = "init"
+mode = "noise"
+# mode = "pol-contrast"
 # mode = "single"
 # mode = "archipelago"
 # mode = "plot-overall"
@@ -34,7 +36,7 @@ mode = "init"
 
 if __name__ == "__main__":
     if mode == "init":
-        tilt = True
+        tilt = False
         samples = 1000
         theta, phi, fit = angles_distribution(60, 60)
         # theta, phi = fibonacci_sphere(samples=60, fov=60)
@@ -43,12 +45,12 @@ if __name__ == "__main__":
         w = -8 / (2. * 60) * np.cos(phi_tb1[np.newaxis] - phi[:, np.newaxis]) * np.sin(theta[:, np.newaxis]) ** 4
 
         # w = np.maximum(w, 0)
-        # cost = SensorObjective._fitness(theta, phi, alpha, w=w, tilt=tilt)  # , error=azidist)
-        cost = SensorObjective._fitness(theta, phi, alpha, tilt=tilt, error=azidist)
+        # cost = SensorObjective._fitness(theta, phi, alpha, w=w, tilt=tilt, error=azidist)
+        cost = SensorObjective._fitness(theta, phi, alpha, tilt=tilt, error=azidist, noise=.0)
 
-        print cost
+        print "Mean cost: %.2f" % cost
 
-        s = CompassSensor(thetas=theta, phis=phi, alphas=alpha)
+        # s = CompassSensor(thetas=theta, phis=phi, alphas=alpha)
         # CompassSensor.visualise(s, sL=100.*np.sqrt(np.square(w).sum(axis=1)), colormap="Reds")
 
         # if tilt:
@@ -85,6 +87,197 @@ if __name__ == "__main__":
         #     ax = s.visualise_structure(s)
         #     ax.plot(-s.R_c * v_s_[0, 0], s.R_c * v_s_[1, 0], marker="o", color="yellow", markeredgecolor="black", markersize=5)
         #     plt.show()
+    elif mode == "noise":
+        tilt = True
+        samples = 1000
+        nb_noise = 10
+        max_noise = 2
+        xaxis = "cloud"
+
+        theta, phi, fit = angles_distribution(60, 60)
+        alpha = (phi - np.pi/2) % (2 * np.pi) - np.pi
+        noises = np.linspace(0, max_noise, int(max_noise * 5) + 1, endpoint=True)
+
+        plt.figure("cost-function-noise")
+        for activation, ls in [("linear", "-"), ("relu", "-."), ("sigmoid", ":"), ("tanh", "--")]:
+        # for order, ls in [(1, "-"), (5, "-."), (10, "--"), (15, ":")]:
+            costs, c_000, c_030, c_060 = [], [], [], []
+            x = []
+            print activation.capitalize()
+            # print "Order:", order
+            for noise in noises:
+                costs.append([])
+                c_000.append([])
+                c_030.append([])
+                c_060.append([])
+                x.append([])
+                for _ in xrange(nb_noise):
+                    n = np.absolute(np.random.randn(*theta.shape)) < noise
+                    cloud = 100. * n.sum() / np.float32(n.size)
+                    if "noise" in xaxis:
+                        x[-1].append(noise)
+                    elif "cloud" in xaxis:
+                        x[-1].append(cloud)
+                    cost, _, _ = SensorObjective._fitness(
+                        theta, phi, alpha, tilt=tilt, error=azidist, noise=noise,
+                        activation=activation,
+                        # gate_order=order,
+                        return_mean=False)
+                    costs[-1].append(cost.mean())
+                    c_000[-1].append(cost[:, 0].mean())
+                    c_030[-1].append(cost[:, 1:9].mean())  # axis=1))
+                    c_060[-1].append(cost[:, 9:].mean())  # axis=1))
+
+                    print "Mean cost: %.2f, 00: %.2f, 30: %.2f, 60: %.2f" % (
+                        cost.mean(), c_000[-1][-1], c_030[-1][-1], c_060[-1][-1]),
+                    print "| Noise level: %.4f (%.2f %%)" % (noise, cloud)
+
+            np.savez_compressed("%s-layer.npz" % activation, x=x, y=costs, y00=c_000, y30=c_030, y60=c_060)
+            plt.plot(np.mean(x, axis=1), np.mean(costs, axis=1),
+                     c="C0", ls=ls, label=r"overall" if ls is "-" else None)
+            plt.plot(np.mean(x, axis=1), np.mean(c_000, axis=1),
+                     c="C1", ls=ls, label=r"$0^\circ$" if ls is "-" else None)
+            plt.plot(np.mean(x, axis=1), np.mean(c_030, axis=1),
+                     c="C2", ls=ls, label=r"$30^\circ$" if ls is "-" else None)
+            plt.plot(np.mean(x, axis=1), np.mean(c_060, axis=1),
+                     c="C3", ls=ls, label=r"$60^\circ$" if ls is "-" else None)
+            plt.plot([], [], c='black', ls=ls, label="%s layer" % activation)
+            # np.savez_compressed("%02d-order.npz" % order, x=x, y=costs, y00=c_000, y30=c_030, y60=c_060)
+            # plt.plot(np.mean(x, axis=1), np.mean(costs, axis=1),
+            #          c="C0", ls=ls, label=r"overall" if ls is "-" else None)
+            # plt.plot(np.mean(x, axis=1), np.mean(c_000, axis=1),
+            #          c="C1", ls=ls, label=r"$0^\circ$" if ls is "-" else None)
+            # plt.plot(np.mean(x, axis=1), np.mean(c_030, axis=1),
+            #          c="C2", ls=ls, label=r"$30^\circ$" if ls is "-" else None)
+            # plt.plot(np.mean(x, axis=1), np.mean(c_060, axis=1),
+            #          c="C3", ls=ls, label=r"$60^\circ$" if ls is "-" else None)
+            # plt.plot([], [], c='black', ls=ls, label="order %02d" % order)
+
+        plt.legend(ncol=2)
+        plt.grid()
+        plt.ylim([0, 90])
+        if "noise" in xaxis:
+            plt.xlim([0, max_noise])
+            plt.xlabel(r"noise ($\sigma$)")
+        elif "cloud" in xaxis:
+            plt.xlim([0, 100])
+            plt.xlabel(r"noise ($\%$)")
+        plt.ylabel(r"cost ($^\circ$)")
+        plt.show()
+    elif mode == "pol-contrast":
+        tilt = False
+        samples = 1000
+        nb_noise = 1
+        max_noise = 3
+
+        theta, phi, fit = angles_distribution(60, 60)
+        alpha = (phi - np.pi / 2) % (2 * np.pi) - np.pi
+        noises = np.linspace(0, max_noise, int(max_noise * 2) + 1, endpoint=True)
+
+        costs, d_effs, eles = [], [], []
+        x = []
+        for noise in noises:
+            costs.append([])
+            d_effs.append([])
+            eles.append([])
+            x.append([])
+            for _ in xrange(nb_noise):
+                n = np.absolute(np.random.randn(*theta.shape)) < noise
+                cloud = 100. * n.sum() / np.float32(n.size)
+                x[-1].append(cloud)
+                cost, d_eff, theta_s = SensorObjective._fitness(theta, phi, alpha, samples=samples,
+                                                                tilt=tilt, error=azidist, noise=noise,
+                                                                gate_shift=np.deg2rad(54),
+                                                                gate_order=2,
+                                                                return_mean=False)
+                costs[-1].append(cost)
+                d_effs[-1].append(d_eff)
+                eles[-1].append(theta_s)
+
+                print "Mean cost: %.2f" % cost.mean(),
+                print "| Noise level: %.4f (%.2f %%)" % (noise, cloud)
+
+        costs = np.array(costs)[:, 0, :, 0]
+        d_effs = np.array(d_effs)[:, 0, :, 0]
+        eles = np.rad2deg(np.array(eles)[:, 0, :])
+        x = np.array([np.array(x).T] * costs.shape[-1])[:, 0, :].T
+        print x.shape
+        print costs.shape
+        print d_effs.shape
+        print eles.shape
+        # np.savez_compressed("%s-layer.npz" % activation, x=x, y=costs)
+
+        max_ele = 90
+        sky0 = np.all([x < 5, eles < max_ele], axis=0)
+        sky1 = np.all([x >= 5, x <= 50, eles < max_ele], axis=0)
+        sky2 = np.all([x > 50, x <= 80, eles < max_ele], axis=0)
+        sky3 = np.all([x > 80, eles < max_ele], axis=0)
+        print "Sky: 0 - %d, 1 - %d, 2 - %d, 3 - %d" % (sky0.sum(), sky1.sum(), sky2.sum(), sky3.sum())
+
+        plt.figure("cost-function-clouds", figsize=(20, 15))
+        plt.subplot(223)
+        # plt.scatter(costs[sky3].flatten(), d_effs[sky3].flatten(), s=10,
+        #             marker="o", edgecolors="black", color="black", label=r"$> 80\%$ clouds")
+        plt.scatter(costs[sky2].flatten(), d_effs[sky2].flatten(), s=10,
+                    marker="o", edgecolors="black", color="white", label=r"$\leq 80\%$ clouds")
+        plt.scatter(costs[sky1].flatten(), d_effs[sky1].flatten(), s=10,
+                    marker="^", edgecolors="black", color="black", label=r"$\leq 50\%$ clouds")
+        plt.scatter(costs[sky0].flatten(), d_effs[sky0].flatten(), s=10,
+                    marker="^", edgecolors="black", color="white", label=r"$\leq 5\%$ clouds")
+
+        # plt.legend()  # ncol=2)
+        plt.grid()
+        plt.ylim([0, 1])
+        plt.xlim([90, -1])
+        plt.ylabel(r"Polarisation contrast, $d_{eff}$")
+        plt.xlabel(r"Error ($^\circ$)")
+
+        plt.subplot(222)
+        # plt.scatter(eles[sky3].flatten(), costs[sky3].flatten(), s=10,
+        #             marker="o", edgecolors="black", color="black", label=r"$> 80\%$ clouds")
+        plt.scatter(eles[sky2].flatten(), costs[sky2].flatten(), s=10,
+                    marker="o", edgecolors="black", color="white", label=r"$\leq 80\%$ clouds")
+        plt.scatter(eles[sky1].flatten(), costs[sky1].flatten(), s=10,
+                    marker="^", edgecolors="black", color="black", label=r"$\leq 50\%$ clouds")
+        plt.scatter(eles[sky0].flatten(), costs[sky0].flatten(), s=10,
+                    marker="^", edgecolors="black", color="white", label=r"$\leq 5\%$ clouds")
+
+        # plt.legend()  # ncol=2)
+        plt.grid()
+        plt.xlim([-1, 90])
+        plt.ylim([-1, 90])
+        plt.xlabel(r"Solar elevation ($^\circ$)")
+        plt.ylabel(r"Error ($^\circ$)")
+
+        plt.subplot(224)
+        # plt.scatter(eles[sky3].flatten(), d_effs[sky3].flatten(), s=10,
+        #             marker="o", edgecolors="black", color="black", label=r"$> 80\%$ clouds")
+        plt.scatter(eles[sky2].flatten(), d_effs[sky2].flatten(), s=10,
+                    marker="o", edgecolors="black", color="white", label=r"$\leq 80\%$ clouds")
+        plt.scatter(eles[sky1].flatten(), d_effs[sky1].flatten(), s=10,
+                    marker="^", edgecolors="black", color="black", label=r"$\leq 50\%$ clouds")
+        plt.scatter(eles[sky0].flatten(), d_effs[sky0].flatten(), s=10,
+                    marker="^", edgecolors="black", color="white", label=r"$\leq 5\%$ clouds")
+
+        plt.legend()  # ncol=2)
+        plt.grid()
+        plt.xlim([-1, 90])
+        plt.ylim([0, 1])
+        plt.xlabel(r"Solar elevation ($^\circ$)")
+        plt.ylabel(r"Polarisation contrast, $d_{eff}$")
+
+        plt.subplot(221)
+        plt.hist([costs[sky3].flatten(), costs[sky2].flatten(), costs[sky1].flatten(), costs[sky0].flatten()],
+                 bins=45, range=(0, 90), histtype="step", stacked=True,
+                 color=["C1", "C3", "C2", "C0"])  # , edgecolor="black")
+        # plt.hist(costs[np.any([sky0, sky1, sky2], axis=0)].flatten(), bins=90, range=(0, 90),
+        #          edgecolor="black", facecolor="white")
+        # plt.legend()  # ncol=2)
+        plt.grid()
+        plt.xlim([90, -1])
+        plt.ylabel(r"Number of occurences")
+        plt.xlabel(r"Error ($^\circ$)")
+        plt.show()
     elif mode == "single":
 
         algo_name = "sea"
@@ -178,16 +371,16 @@ if __name__ == "__main__":
             # "pso-060-060",
             "%s-060-060" % algo_name,
             "%s-130-150" % algo_name,
-            # "%s-060-060-tilt" % algo_name,
-            # "%s-130-150-tilt" % algo_name
+            "%s-060-060-tilt" % algo_name,
+            "%s-130-150-tilt" % algo_name
         ]
         labels = [
             # "SEA",
             # "PSO",
             "normal - non-tilting",
             "wide - non-tilting",
-            # "normal - tilting",
-            # "wide - tilting",
+            "normal - tilting",
+            "wide - tilting",
         ]
 
         log_names = get_log(algo_name)
@@ -228,13 +421,13 @@ if __name__ == "__main__":
         plt.xlim([0, gens])
         plt.show()
     elif mode == "plot-params":
-        nb_lenses = 130
-        fov = 150
+        nb_lenses = 60
+        fov = 60
         thetas = True
         phis = True
         alphas = True
         ws = True
-        label = "pso-%03d-%03d" % (nb_lenses, fov)
+        label = "pso-%03d-%03d-tilt" % (nb_lenses, fov)
         style = "img"
 
         so = SensorObjective(nb_lenses, fov,
