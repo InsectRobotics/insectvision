@@ -452,10 +452,12 @@ if __name__ == "__main__":
         [np.pi / 3, 4 * np.pi / 4], [np.pi / 3, 5 * np.pi / 4], [np.pi / 3, 6 * np.pi / 4], [np.pi / 3, 7 * np.pi / 4]
     ])  # 17
 
+    plt.figure("tilt-angles", figsize=(3, 3))
     ax = plt.subplot(111, polar=True)
     ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
     plt.scatter(angles[:, 1], np.rad2deg(angles[:, 0]), c="r", marker="o")
     plt.ylim([0, 90])
     plt.xticks([0, np.pi/4, np.pi/2, 3*np.pi/4, np.pi, -3*np.pi/4, -np.pi/2, -np.pi/4])
-    plt.yticks([0, 30, 60, 90])
+    plt.yticks([0, 30, 60, 90], ["", "30", "60", ""])
     plt.show()

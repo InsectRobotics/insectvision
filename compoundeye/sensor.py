@@ -5,7 +5,7 @@ import numpy as np
 from geometry import fibonacci_sphere, angles_distribution, LENS_RADIUS, A_lens
 from learn.whitening import zca
 from model import CompoundEye
-from sky import SkyModel
+# from sky import SkyModel
 from code.compass import encode_sph, decode_sph
 from sphere import sph2vec
 

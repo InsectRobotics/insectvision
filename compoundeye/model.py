@@ -1,7 +1,7 @@
 import numpy as np
 from copy import copy
 from utils import get_microvilli_angle
-from sky import SkyModel
+# from sky import SkyModel
 
 SkyBlue = np.array([.05, .53, .79])[..., np.newaxis]
 # SkyBlue = np.array([1.0, 1.0, 1.0])[..., np.newaxis]
