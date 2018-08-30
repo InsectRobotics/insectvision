@@ -14,6 +14,7 @@ def evaluate(n=60, omega=52,
              use_default=False,
              weighted=True,
              fibonacci=False,
+             simple_pol=False, uniform_poliriser=False,
 
              # single evaluation
              sun_azi=None, sun_ele=None,
@@ -59,7 +60,8 @@ def evaluate(n=60, omega=52,
 
     # generate the different sun positions
     if sun_azi is not None or sun_ele is not None:
-        theta_s, phi_s = np.array([sun_ele]), np.array([sun_azi])
+        theta_s = sun_ele if type(sun_ele) is np.ndarray else np.array([sun_ele])
+        phi_s = sun_azi if type(sun_azi) is np.ndarray else np.array([sun_azi])
     else:
         theta_s, phi_s = fibonacci_sphere(samples=samples, fov=161)
         phi_s = phi_s[theta_s <= np.pi / 2]
@@ -91,6 +93,8 @@ def evaluate(n=60, omega=52,
     d = np.zeros((samples, angles.shape[0]), dtype=np.float32)
     t = np.zeros_like(d)
     d_eff = np.zeros((samples, angles.shape[0]), dtype=np.float32)
+    a_ret = np.zeros_like(t)
+    tb1 = np.zeros((samples, angles.shape[0], nb_tb1), dtype=np.float32)
 
     # iterate through the different tilting angles
     for j, (theta_t, phi_t) in enumerate(angles):
@@ -109,16 +113,26 @@ def evaluate(n=60, omega=52,
             I = (1. / (I_prez + eps) - 1. / (I_00 + eps)) * I_00 * I_90 / (I_00 - I_90 + eps)
             chi = (4. / 9. - tau_L / 120.) * (np.pi - 2 * e_org)
             Y_z = (4.0453 * tau_L - 4.9710) * np.tan(chi) - 0.2155 * tau_L + 2.4192
-            Y = np.maximum(Y_z * I_prez / (I_00 + eps), 0.)  # Illumination
+            if uniform_poliriser:
+                Y = np.maximum(np.full_like(I_prez, Y_z), 0.)
+            else:
+                Y = np.maximum(Y_z * I_prez / (I_00 + eps), 0.)  # Illumination
 
             # Degree of Polarisation
             M_p = np.exp(-(tau_L - c1) / (c2 + eps))
             LP = np.square(np.sin(gamma)) / (1 + np.square(np.cos(gamma)))
-            P = np.clip(2. / np.pi * M_p * LP * (theta_ * np.cos(theta_) + (np.pi/2 - theta_) * I), 0., 1.)
-            # P = LP
+            if uniform_poliriser:
+                P = np.ones_like(LP)
+            elif simple_pol:
+                P = np.clip(2. / np.pi * M_p * LP, 0., 1.)
+            else:
+                P = np.clip(2. / np.pi * M_p * LP * (theta_ * np.cos(theta_) + (np.pi/2 - theta_) * I), 0., 1.)
 
             # Angle of polarisation
-            _, A = tilt(e_org, a_org + np.pi, theta_, phi_)
+            if uniform_poliriser:
+                A = np.full_like(P, a_org + np.pi)
+            else:
+                _, A = tilt(e_org, a_org + np.pi, theta_, phi_)
 
             # create cloud disturbance
             if noise > 0:
@@ -164,7 +178,8 @@ def evaluate(n=60, omega=52,
 
             d[i, j] = np.absolute(azidist(np.array([e, a]), np.array([0., a_pred])))
             t[i, j] = tau_pred if weighted else 1.
-            # t[i, j] = e
+            a_ret[i, j] = a_pred
+            tb1[i, j] = r_tb1
 
             # effective degree of polarisation
             M = r_cl1.max() - r_cl1.min()
@@ -289,7 +304,7 @@ def evaluate(n=60, omega=52,
         ax.set_title("POL Response")
         plt.show()
 
-    return d_deg, d_eff, t
+    return d_deg, d_eff, t, a_ret, tb1
 
 
 def nb_neurons_test(save=None, mode=0, **kwargs):
@@ -687,6 +702,38 @@ def gate_ring(sigma=np.deg2rad(13), shift=np.deg2rad(40), theta_t=0., phi_t=0.):
     plt.show()
 
 
+def heinze_experiment(n_tb1=0, eta=.0, absolute=False, uniform=False):
+    sun_azi = np.linspace(-np.pi, np.pi, 36, endpoint=False)
+    sun_ele = np.full_like(sun_azi, np.pi/2)
+    tb1s = np.empty((0, sun_azi.shape[0], 8), dtype=sun_azi.dtype)
+
+    for _ in np.linspace(0, 1, 100):
+        d_deg, d_eff, t, phi, r_tb1 = evaluate(uniform_poliriser=uniform,
+                                               sun_azi=sun_azi, sun_ele=sun_ele, tilting=False, noise=eta)
+        tb1s = np.vstack([tb1s, np.transpose(r_tb1, axes=(1, 0, 2))])
+
+    plt.figure("heinze-%s%d" % ("abs-" if absolute else "uni-" if uniform else "", n_tb1), figsize=(3, 3))
+    ax = plt.subplot(111, polar=True)
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+    if absolute:
+        tb1s = np.absolute(tb1s)
+    r_mean = np.median(tb1s[..., n_tb1], axis=0)
+    z = r_mean.max() - r_mean.min()
+
+    r_mean = (r_mean - r_mean.min()) / z - .5
+    r_std = tb1s[..., n_tb1].std(axis=0) / np.sqrt(z)
+    bl = .5
+    plt.bar((sun_azi + np.pi) % (2 * np.pi) - np.pi, bl + r_mean, .1, yerr=r_std, facecolor='black')
+    plt.plot(np.linspace(-np.pi, np.pi, 361), np.full(361, bl), 'k-')
+    plt.yticks([])
+    plt.xticks(np.linspace(0, 2 * np.pi, 8, endpoint=False),
+               [r'%d$^\circ$' % x for x in ((np.linspace(0, 360, 8, endpoint=False) + 180) % 360 - 180)])
+    plt.ylim([-.3, 1.1])
+    plt.savefig("heinze-%s%d.svg" % ("abs-" if absolute else "uni-" if uniform else "", n_tb1))
+    # plt.show()
+
+
 def one_test(**kwargs):
     print "Running single test:", kwargs
 
@@ -704,5 +751,7 @@ if __name__ == "__main__":
     # gate_test(tilting=True, mode=3)
     # tilt_test(sigma=np.deg2rad(13), weighted=True)
     # structure_test(tilting=True, mode=1, n=60, omega=52, weighted=True)
-    one_test(n=60, omega=56, sigma=np.deg2rad(13), shift=np.deg2rad(40), use_default=False, weighted=True,
-             show_plots=True, show_structure=False, verbose=True, samples=5, tilting=True, noise=.1)
+    for n_tb1 in xrange(8):
+        heinze_experiment(n_tb1=n_tb1, absolute=False, uniform=True)
+    # one_test(n=60, omega=56, sigma=np.deg2rad(13), shift=np.deg2rad(40), use_default=False, weighted=True,
+    #          show_plots=True, show_structure=False, verbose=True, samples=5, tilting=True, noise=.1)
