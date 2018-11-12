@@ -6,10 +6,12 @@ from learn.loss_function import SensorObjective
 import matplotlib.pyplot as plt
 import numpy as np
 
+tb1_names = ['L5/R4', 'L6/R3', 'L7/R2', 'L8/R1', 'L1/R8', 'L2/R7', 'L3/R6', 'L4/R5']
 
-def evaluate(n=60, omega=52,
+
+def evaluate(n=60, omega=56,
              noise=0.,
-             nb_cl1=16, sigma=np.deg2rad(13), shift=np.deg2rad(40),
+             nb_cl1=8, sigma=np.deg2rad(13), shift=np.deg2rad(40),
              nb_tb1=8,
              use_default=False,
              weighted=True,
@@ -86,7 +88,7 @@ def evaluate(n=60, omega=52,
     alpha = (phi + np.pi/2) % (2 * np.pi) - np.pi
 
     # computational model parameters
-    phi_cl1 = np.linspace(0., 4 * np.pi, nb_cl1, endpoint=False)  # CL1 preference angles
+    phi_cl1 = np.linspace(0., 2 * np.pi, nb_cl1, endpoint=False)  # CL1 preference angles
     phi_tb1 = np.linspace(0., 2 * np.pi, nb_tb1, endpoint=False)  # TB1 preference angles
 
     # initialise lists for the statistical data
@@ -146,23 +148,34 @@ def evaluate(n=60, omega=52,
             # COMPUTATIONAL MODEL
 
             # Input (POL) layer -- Photo-receptors
-            s_1 = 15. * (np.square(np.sin(A - alpha_)) + np.square(np.cos(A - alpha_)) * np.square(1. - P))
-            s_2 = 15. * (np.square(np.cos(A - alpha_)) + np.square(np.sin(A - alpha_)) * np.square(1. - P))
+            s_1 = Y * (np.square(np.sin(A - alpha_)) + np.square(np.cos(A - alpha_)) * np.square(1. - P))
+            s_2 = Y * (np.square(np.cos(A - alpha_)) + np.square(np.sin(A - alpha_)) * np.square(1. - P))
             r_1, r_2 = np.sqrt(s_1), np.sqrt(s_2)
             # r_1, r_2 = np.log(s_1 + 1.), np.log(s_2 + 1.)
-            r_pol = (r_1 - r_2) / (r_1 + r_2 + eps)
+            r_op, r_po = r_1 - r_2, r_1 + r_2
+            r_pol = r_op / (r_po + eps)
 
-            # Tilting (CL1) layer
+            # Tilting (SOL) layer
             d_cl1 = (np.sin(shift - theta) * np.cos(theta_t) +
                      np.cos(shift - theta) * np.sin(theta_t) *
                      np.cos(phi - phi_t))
+            d_sun = (np.sin(-theta) * np.cos(theta_t) +
+                     np.cos(-theta) * np.sin(theta_t) *
+                     np.cos(phi - phi_t))
             gate = np.power(np.exp(-np.square(d_cl1) / (2. * np.square(sigma))), 1)
-            w_cl1 = float(nb_cl1) / float(n) * np.sin(alpha[:, np.newaxis] - phi_cl1[np.newaxis]) * gate[:,
-                                                                                                          np.newaxis]
-            r_cl1 = r_pol.dot(w_cl1)
+            gate_po = np.power(np.exp(-np.square(d_sun) / (2. * np.square(sigma))), 1)
+            w_cl1_po = float(nb_cl1) / float(n) * np.sin(phi_cl1[np.newaxis] - alpha[:, np.newaxis]) * gate_po[:, np.newaxis]
+            w_cl1 = -float(nb_cl1) / float(n) * np.sin(phi_cl1[np.newaxis] - alpha[:, np.newaxis]) * gate[:, np.newaxis]
+            # w_cl1 = float(nb_cl1) / float(n) * np.sin(alpha[:, np.newaxis] - phi_cl1[np.newaxis]) * gate[:,
+            #                                                                                               np.newaxis]
+            # r_pol = Y
+            r_cl1 = Y.dot(w_cl1_po)
+            # r_cl1 = r_pol.dot(w_cl1)
+            # r_cl1 = 11./12. * r_pol.dot(w_cl1) + 1./12. * Y.dot(w_cl1_po)
 
-            # Output (TB1) layer
-            w_tb1 = float(nb_tb1) / float(2 * nb_cl1) * np.cos(phi_tb1[np.newaxis] - phi_cl1[:, np.newaxis])
+            # Output (TCL) layer
+            # w_tb1 = np.eye(nb_tb1)
+            w_tb1 = float(nb_tb1) / float(nb_cl1) * np.cos(phi_tb1[np.newaxis] - phi_cl1[:, np.newaxis])
 
             r_tb1 = r_cl1.dot(w_tb1)
 
@@ -174,7 +187,7 @@ def evaluate(n=60, omega=52,
             # decode response - FFT
             R = r_tb1.dot(np.exp(-np.arange(nb_tb1) * (0. + 1.j) * np.pi / (float(nb_tb1) / 2.)))
             a_pred = (np.pi - np.arctan2(R.imag, R.real)) % (2. * np.pi) - np.pi  # sun azimuth (prediction)
-            tau_pred = np.absolute(R) - np.pi/2  # certainty of prediction
+            tau_pred = np.maximum(np.absolute(R) - np.pi/2, 0)  # certainty of prediction
 
             d[i, j] = np.absolute(azidist(np.array([e, a]), np.array([0., a_pred])))
             t[i, j] = tau_pred if weighted else 1.
@@ -218,7 +231,9 @@ def evaluate(n=60, omega=52,
                 ax.set_theta_direction(-1)
                 ax.set_ylim([0, np.deg2rad(40)])
                 ax.set_yticks([])
-                ax.set_xticks(np.linspace(-3*np.pi/4, 5*np.pi/4, 8, endpoint=False))
+                ax.set_xticks(np.linspace(0, 2*np.pi, 8, endpoint=False))
+                ax.set_xticklabels([r'$0^\circ$', r'$45^\circ$', r'$90^\circ$', r'$135^\circ$',
+                                    r'$180^\circ$', r'$-135^\circ$', r'$-90^\circ$', r'$-45^\circ$'])
                 ax.set_title("POL Response", fontsize=16)
 
                 ax.tick_params(axis='both', which='major', labelsize=16)
@@ -232,12 +247,13 @@ def evaluate(n=60, omega=52,
                 ax.set_theta_direction(-1)
                 ax.set_ylim([0, np.deg2rad(40)])
                 ax.set_yticks([])
-                ax.set_xticks(np.linspace(-3*np.pi/4, 5*np.pi/4, 8, endpoint=False))
+                ax.set_xticks(np.linspace(0, 2*np.pi, 8, endpoint=False))
+                ax.set_xticklabels([r'$0^\circ$', r'$45^\circ$', r'$90^\circ$', r'$135^\circ$',
+                                    r'$180^\circ$', r'$-135^\circ$', r'$-90^\circ$', r'$-45^\circ$'])
                 ax.set_title("Gated Response", fontsize=16)
 
                 ax.tick_params(axis='both', which='major', labelsize=16)
                 ax.tick_params(axis='both', which='minor', labelsize=16)
-
 
                 ax = plt.subplot(1, 4, 3, polar=True)
                 x = np.linspace(0, 2 * np.pi, 721)
@@ -467,7 +483,7 @@ def noise2disturbance_plot(n=60, samples=1000):
     plt.show()
 
 
-def gate_test(save=None, mode=2, **kwargs):
+def gate_test(save=None, mode=2, filename="gate-costs.npz", **kwargs):
     print "Running gating test:", kwargs
 
     plt.figure("Gating", figsize=(5, 5))
@@ -482,7 +498,7 @@ def gate_test(save=None, mode=2, **kwargs):
         means = np.zeros_like(sigmas)
         ses = np.zeros_like(sigmas)
         for ii, sigma in enumerate(sigmas):
-            d_err, d_eff = evaluate(sigma=sigma, verbose=False, **kwargs)
+            d_err, d_eff, _, _, _ = evaluate(sigma=sigma, verbose=False, **kwargs)
 
             means[ii] = d_err.mean()
             ses[ii] = d_err.std() / np.sqrt(d_err.size)
@@ -494,7 +510,7 @@ def gate_test(save=None, mode=2, **kwargs):
         means = np.zeros_like(shifts)
         ses = np.zeros_like(shifts)
         for ii, shift in enumerate(shifts):
-            d_err, d_eff = evaluate(shift=shift, verbose=False, **kwargs)
+            d_err, d_eff, _, _, _ = evaluate(shift=shift, verbose=False, **kwargs)
 
             means[ii] = d_err.mean()
             ses[ii] = d_err.std() / np.sqrt(d_err.size)
@@ -511,7 +527,6 @@ def gate_test(save=None, mode=2, **kwargs):
         # plt.ylabel(r'MSE ($^\circ$)')
         plt.legend()
     else:
-        filename = "gate-costs.npz"
         if mode > 2:
             data = np.load(filename)
             shifts, sigmas, means = data["shifts"], data["sigmas"], data["costs"]
@@ -519,14 +534,14 @@ def gate_test(save=None, mode=2, **kwargs):
             sigmas, shifts = np.meshgrid(sigmas, shifts)
             means = np.zeros(sigmas.size)
             for ii, sigma, shift in zip(np.arange(sigmas.size), sigmas.flatten(), shifts.flatten()):
-                d_err, d_eff, tau = evaluate(sigma=sigma, shift=shift, verbose=False, **kwargs)
+                d_err, d_eff, tau, _, _ = evaluate(sigma=sigma, shift=shift, verbose=False, **kwargs)
                 means[ii] = d_err.mean()
-                se = d_err.std() / np.sqrt(d_err.size)
+                se = np.rad2deg(d_err.std() / np.sqrt(d_err.size))
                 print 'Sigma = %.2f, Shift = %.2f | Mean cost: %.2f +/- %.4f' % (
                     np.rad2deg(sigma), np.rad2deg(shift), means[ii], se)
 
             means = means.reshape(shifts.shape)
-            np.savez_compressed("gate-costs.npz", shifts=shifts, sigmas=sigmas, costs=means)
+            np.savez_compressed(filename, shifts=shifts, sigmas=sigmas, costs=means)
 
         ii = np.argmin(means.flatten())
         sigma_min = sigmas.flatten()[ii]
@@ -649,12 +664,14 @@ def structure_test(save=None, mode=0, **kwargs):
     plt.show()
 
 
-def tilt_test(samples=1000, **kwargs):
-    d_err, d_eff, tau = evaluate(samples=samples, tilting=True, **kwargs)
+def tilt_test(samples=500, **kwargs):
+    d_err, d_eff, tau, _, _ = evaluate(samples=samples, tilting=True, **kwargs)
 
-    d_mean = np.nansum(d_err * tau / tau.sum())
+    tau = np.rad2deg(tau)
+    d_mean = np.nanmean(d_err)
+    tau_mean = np.nanmean(tau)
     d_se = d_err.std() / np.sqrt(d_err.size)
-    print "Mean cost: %.2f +/- %.4f" % (d_mean, d_se)
+    print "Mean cost: %.2f +/- %.4f, Certainty: %.2f" % (d_mean, d_se, tau_mean)
 
     if samples == 1000:
         samples /= 2
@@ -662,10 +679,18 @@ def tilt_test(samples=1000, **kwargs):
     phi_s = phi_s[theta_s <= np.pi / 2]
     theta_s = theta_s[theta_s <= np.pi / 2]
 
-    d_00 = d_err[:, 0] * tau[:, 0] / tau[:, 0].sum()
-    d_30 = (d_err[:, 1:9] * tau[:, 1:9] / tau[:, 1:9].sum(axis=1)[:, np.newaxis]).sum(axis=1)
-    d_60 = (d_err[:, 9:] * tau[:, 9:] / tau[:, 9:].sum(axis=1)[:, np.newaxis]).sum(axis=1)
-    print np.nanmean(d_00), np.nanmean(d_30), np.nanmean(d_60)
+    d_00 = d_err[:, 0]
+    tau_00 = tau[:, 0]
+    d_30 = np.nanmean(d_err[:, 1:9], axis=1)
+    tau_30 = np.nanmean(tau[:, 1:9], axis=1)
+    d_60 = np.nanmean(d_err[:, 9:], axis=1)
+    tau_60 = np.nanmean(tau[:, 9:], axis=1)
+    print "Mean cost (00): %.2f +/- %.4f, Certainty: %.2f" % (
+        np.nanmean(d_00), np.nanstd(d_00) / d_00.size, np.nanmean(tau_00))
+    print "Mean cost (30): %.2f +/- %.4f, Certainty: %.2f" % (
+        np.nanmean(d_err[:, 1:9]), np.nanstd(d_err[:, 1:9]) / d_err[:, 1:9].size, np.nanmean(tau[:, 1:9]))
+    print "Mean cost (60): %.2f +/- %.4f, Certainty: %.2f" % (
+        np.nanmean(d_err[:, 9:]), np.nanstd(d_err[:, 9:]) / d_err[:, 9:].size, np.nanmean(tau[:, 9:]))
 
     plt.figure("Tilts", figsize=(10, 3))
     for i, ang, dd in zip(range(3), [0, np.pi/6, np.pi/3], [d_00, d_30, d_60]):
@@ -680,6 +705,21 @@ def tilt_test(samples=1000, **kwargs):
     plt.imshow(np.array([np.arange(0, np.pi / 2, np.pi / 180)] * 10).T, cmap="Reds")
     plt.xticks([])
     plt.yticks([0, 45, 89], [r"0", r"$\frac{\pi}{4}$", r"$\geq\frac{\pi}{2}$"])
+
+    # plt.figure("Tilts-taus", figsize=(10, 3))
+    # for i, ang, dd in zip(range(3), [0, np.pi/6, np.pi/3], [tau_00, tau_30, tau_60]):
+    #     ax = plt.subplot2grid((1, 10), (0, i * 3), colspan=3, polar=True)
+    #     ax.set_theta_zero_location("N")
+    #     ax.set_theta_direction(-1)
+    #     plt.scatter(phi_s, np.rad2deg(theta_s), marker=".", c=dd, cmap="Reds", vmin=0, vmax=90)
+    #     plt.scatter(np.pi, np.rad2deg(ang), marker="o", c="yellowgreen", edgecolors="black")
+    #     plt.text(-np.deg2rad(50), 145, ["A", "B", "C"][i], fontsize=12)
+    #     plt.axis("off")
+    # plt.subplot2grid((3, 10), (1, 9))
+    # plt.imshow(np.array([np.arange(0, np.pi / 2, np.pi / 180)] * 10).T, cmap="Reds")
+    # plt.xticks([])
+    # plt.yticks([0, 45, 89], [r"0", r"$\frac{\pi}{4}$", r"$\geq\frac{\pi}{2}$"])
+
     plt.show()
 
 
@@ -697,7 +737,9 @@ def gate_ring(sigma=np.deg2rad(13), shift=np.deg2rad(40), theta_t=0., phi_t=0.):
     ax.set_theta_direction(-1)
     ax.set_ylim([0, np.deg2rad(90)])
     plt.yticks([np.deg2rad(28)], [r'$28^\circ$'])
-    ax.set_xticks(np.linspace(-3 * np.pi / 4, 5 * np.pi / 4, 8, endpoint=False))
+    ax.set_xticks(np.linspace(0, 2 * np.pi, 8, endpoint=False))
+    ax.set_xticklabels([r'$0^\circ$', r'$45^\circ$', r'$90^\circ$', r'$135^\circ$',
+                        r'$180^\circ$', r'$-135^\circ$', r'$-90^\circ$', r'$-45^\circ$'])
     # ax.set_title("POL Response")
     plt.show()
 
@@ -712,7 +754,7 @@ def heinze_experiment(n_tb1=0, eta=.0, absolute=False, uniform=False):
                                                sun_azi=sun_azi, sun_ele=sun_ele, tilting=False, noise=eta)
         tb1s = np.vstack([tb1s, np.transpose(r_tb1, axes=(1, 0, 2))])
 
-    plt.figure("heinze-%s%d" % ("abs-" if absolute else "uni-" if uniform else "", n_tb1), figsize=(3, 3))
+    plt.figure("heinze-%s%s" % ("abs-" if absolute else "uni-" if uniform else "", tb1_names[n_tb1]), figsize=(3, 3))
     ax = plt.subplot(111, polar=True)
     ax.set_theta_zero_location("N")
     ax.set_theta_direction(-1)
@@ -730,28 +772,135 @@ def heinze_experiment(n_tb1=0, eta=.0, absolute=False, uniform=False):
     plt.xticks(np.linspace(0, 2 * np.pi, 8, endpoint=False),
                [r'%d$^\circ$' % x for x in ((np.linspace(0, 360, 8, endpoint=False) + 180) % 360 - 180)])
     plt.ylim([-.3, 1.1])
-    plt.savefig("heinze-%s%d.svg" % ("abs-" if absolute else "uni-" if uniform else "", n_tb1))
-    # plt.show()
+    # plt.savefig("heinze-%s%d.eps" % ("abs-" if absolute else "uni-" if uniform else "", n_tb1))
+    plt.show()
+
+
+def heinze_1f(eta=.5, uniform=False):
+    from astropy.stats import circmean
+
+    sun_azi = np.linspace(-np.pi, np.pi, 36, endpoint=False)
+    sun_ele = np.full_like(sun_azi, np.pi/2)
+    phi_tb1 = np.linspace(0., 2 * np.pi, 8, endpoint=False)  # TB1 preference angles
+    tb1_ids = np.empty((0, sun_azi.shape[0], 8), dtype=sun_azi.dtype)
+    tb1s = np.empty((0, sun_azi.shape[0], 8), dtype=sun_azi.dtype)
+
+    for _ in np.linspace(0, 1, 100):
+        d_deg, d_eff, t, phi, r_tb1 = evaluate(uniform_poliriser=uniform,
+                                               sun_azi=sun_azi, sun_ele=sun_ele, tilting=False, noise=eta)
+        tb1s = np.vstack([tb1s, np.transpose(r_tb1, axes=(1, 0, 2))])
+        tb1_ids = np.vstack([tb1_ids, np.array([sun_azi] * 8).T.reshape((1, 36, 8))])
+    z = tb1s.max() - tb1s.min()
+    tb1s = (tb1s - tb1s.min()) / z
+    plt.figure("heinze-%sfig-1F" % ("uni-" if uniform else ""), figsize=(5, 5))
+    phi = circmean(tb1_ids, weights=tb1s, axis=1)
+    # plt.boxplot(phi)
+    print phi.shape
+    plt.scatter([4, 5, 6, 7, 0, 1, 2, 3] * 100, np.rad2deg(phi), s=20, c='black')
+    plt.scatter([4, 5, 6, 7, 0, 1, 2, 3], np.rad2deg(circmean(phi, axis=0)), s=50, c='red')
+    print np.rad2deg(circmean(phi, axis=0))
+    plt.xticks([0, 1, 2, 3, 4, 5, 6, 7],
+               [tb1_names[4], '', tb1_names[6], '', tb1_names[0], '', tb1_names[2], ''])
+    plt.yticks([-180, -135, -90, -45, 0, 45, 90, 135, 180],
+               ['-180', '', '-90', '', '0', '', '90', '', '180'])
+    plt.ylim([-200, 200])
+    plt.show()
 
 
 def one_test(**kwargs):
     print "Running single test:", kwargs
 
-    d_err, d_eff, t = evaluate(**kwargs)
-    d_mean = (d_err * t / t.sum()).sum()
-    d_se = d_err.std() / np.sqrt(d_err.size)
-    print "Mean cost: %.2f +/- %.4f" % (d_mean, d_se)
+    d_err, d_eff, t, _, _ = evaluate(**kwargs)
+    d_mean = np.nanmean(d_err)
+    d_se = np.nanstd(d_err) / np.sqrt(d_err.size)
+    print "Mean cost: %.2f +/- %.4f -- Certainty: %.2f" % (d_mean, d_se, np.nanmean(np.rad2deg(t)))
+
+
+def elevation_test(**kwargs):
+    print "Running elevation test:", kwargs
+
+    sun_ele = np.linspace(0, np.pi/2, 91)
+    sun_azi = np.linspace(0, 2 * np.pi, 360, endpoint=False)
+    sun_ele = kwargs.get('sun_ele', sun_ele)
+    d_mean = np.zeros_like(sun_ele)
+    d_se = np.zeros_like(sun_ele)
+    tau = np.zeros_like(sun_ele)
+    kwargs['sun_azi'] = kwargs.get('sun_azi', sun_azi)
+    kwargs['tilting'] = kwargs.get('tilting', False)
+    kwargs['weighted'] = kwargs.get('weighted', True)
+
+    plt.figure("elevation", figsize=(4.5, 3))
+    for j, noise in enumerate(np.linspace(0, 2, 5)):
+        # plt.figure("elevation-%02d" % (10 * noise), figsize=(5, 2))
+        # kwargs['noise'] = kwargs.get('noise', noise)
+        kwargs['noise'] = noise
+
+        d = np.zeros((sun_azi.shape[0], sun_ele.shape[0]))
+        for i, theta_s in enumerate(sun_ele):
+            kwargs['sun_ele'] = np.full_like(sun_azi, theta_s)
+            d_err, d_eff, t, a_ret, tb1 = evaluate(**kwargs)
+            d_mean[i] = np.nanmean(d_err)
+            d_se[i] = np.nanstd(d_err) / np.sqrt(np.sum(~np.isnan(d_err)))
+            tau[i] += np.rad2deg(np.nanmean(t))
+            print "Mean cost: %.2f +/- %.4f -- Certainty: %.2f -- ele: %.2f" % (d_mean[i], d_se[i], tau[i], np.rad2deg(theta_s))
+        plt.fill_between(np.rad2deg(sun_ele), d_mean - d_se, d_mean + d_se, facecolor='C%d' % j, alpha=.5)
+        # plt.semilogy(np.rad2deg(sun_ele), d_mean, color='C%d' % j, label=r'$\eta = %.1f$' % noise)
+        plt.plot(np.rad2deg(sun_ele), d_mean, color='C%d' % j, label=r'$\eta = %.1f$' % noise)
+    tau /= 5.
+    plt.plot(np.rad2deg(sun_ele), tau, 'k--')
+    plt.legend()
+    # plt.yticks([0.01, 0.1, 1, 10, 100])
+    plt.yticks([0, 30, 60, 90])
+    # plt.ylim([0.001, 120])
+    plt.ylim([0, 90])
+    plt.xticks([0, 30, 60, 90])
+    plt.xlim([0, 90])
+    plt.ylabel(r'MSE [$\circ$]')
+    plt.xlabel(r'sun elevation [$\circ$]')
+
+    # kwargs.pop('sun_azi')
+    # kwargs.pop('sun_ele')
+    # noises = np.linspace(0, 2, 100)
+    # d_mean = np.zeros_like(noises)
+    # d_se = np.zeros_like(noises)
+    # tau = np.zeros_like(noises)
+    #
+    # plt.figure("noise", figsize=(3, 3))
+    # for j, noise in enumerate(noises):
+    #     kwargs['noise'] = noise
+    #     d_err, d_eff, t, a_ret, tb1 = evaluate(**kwargs)
+    #     d_mean[j] = np.nanmean(d_err)
+    #     d_se[j] = np.nanstd(d_err) / np.sqrt(np.sum(~np.isnan(d_err)))
+    #     tau[j] = np.rad2deg(np.nanmean(t))
+    #     print "Mean cost: %.2f +/- %.4f -- Certainty: %.2f -- noise: %.2f" % (d_mean[j], d_se[j], tau[j], noise)
+    # plt.fill_between(noises, d_mean - d_se, d_mean + d_se, facecolor='black', alpha=.5)
+    # # plt.semilogy(noises, d_mean, 'k-%s' % ('' if weighted else '-'),
+    # #              label=r'%s' % ('weighted' if weighted else ' simple'))
+    # plt.plot(noises, d_mean, 'k-', label=r'$E[J]$')
+    # plt.plot(noises, tau, 'k--', label=r'$E[\tau]$')
+    #
+    # plt.legend()
+    # # plt.yticks([0.01, 0.1, 1, 10, 100])
+    # plt.yticks([0, 30, 60, 90])
+    # # plt.ylim([0.001, 120])
+    # plt.ylim([0, 90])
+    # plt.xticks([0, 0.5, 1, 1.5, 2])
+    # plt.xlim([0, 2])
+    # plt.xlabel(r'noise ($\eta$)')
+    plt.show()
 
 
 if __name__ == "__main__":
     # noise_test()
     # nb_neurons_test(mode=2, tilting=True, weighted=False, noise=.0)
-    # gate_ring()
+    gate_ring(sigma=np.deg2rad(26), shift=np.deg2rad(0))
     # noise2disturbance_plot()
-    # gate_test(tilting=True, mode=3)
-    # tilt_test(sigma=np.deg2rad(13), weighted=True)
+    # gate_test(tilting=True, mode=2, filename="gate-costs-po.npz")
+    # tilt_test(weighted=True, use_default=False)
     # structure_test(tilting=True, mode=1, n=60, omega=52, weighted=True)
-    for n_tb1 in xrange(8):
-        heinze_experiment(n_tb1=n_tb1, absolute=False, uniform=True)
+    # for n_tb1 in xrange(8):
+    #     heinze_experiment(n_tb1=n_tb1, absolute=False, uniform=True)
+    # heinze_1f(eta=.0, uniform=False)
     # one_test(n=60, omega=56, sigma=np.deg2rad(13), shift=np.deg2rad(40), use_default=False, weighted=True,
-    #          show_plots=True, show_structure=False, verbose=True, samples=5, tilting=True, noise=.1)
+    #          show_plots=False, show_structure=False, verbose=True, samples=1000, tilting=True, noise=.0)
+    # elevation_test()

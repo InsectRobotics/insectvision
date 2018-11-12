@@ -76,7 +76,7 @@ def skyfeatures(noise=0., simple_pol=False, samples=1000, verbose=False):
 
 
 if __name__ == "__main__":
-    noise = 1.33
+    noise = 0.
 
     y, p, a, theta, phi = skyfeatures(noise=noise, samples=3000)
 
@@ -102,4 +102,12 @@ if __name__ == "__main__":
     plt.yticks([])
     plt.xticks([])
 
+    plt.figure("sky-aop-%02d" % (10 * noise), figsize=(3, 3))
+    ax = plt.subplot(111, polar=True)
+    ax.scatter(phi, theta, s=10, marker='.', c=a, cmap="hsv", vmin=-np.pi, vmax=np.pi)
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+    ax.set_ylim([0, np.deg2rad(90)])
+    plt.yticks([])
+    plt.xticks([])
     plt.show()
