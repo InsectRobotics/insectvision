@@ -2,6 +2,7 @@ from compoundeye.geometry import angles_distribution, fibonacci_sphere
 from sphere import azidist
 from sphere.transform import tilt
 from learn.loss_function import SensorObjective
+from sky.model import Sky, eps
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,7 +17,7 @@ def evaluate(n=60, omega=56,
              use_default=False,
              weighted=True,
              fibonacci=False,
-             simple_pol=False, uniform_poliriser=False,
+             simple_pol=False, uniform_polariser=False,
 
              # single evaluation
              sun_azi=None, sun_ele=None,
@@ -28,7 +29,6 @@ def evaluate(n=60, omega=56,
     tau_L = 2.
     c1 = .6
     c2 = 4.
-    eps = np.finfo(float).eps
     AA, BB, CC, DD, EE = SensorObjective.T_L.dot(np.array([tau_L, 1.]))  # sky parameters
     T_T = np.linalg.pinv(SensorObjective.T_L)
     tau_L, c = T_T.dot(np.array([AA, BB, CC, DD, EE]))
@@ -102,48 +102,13 @@ def evaluate(n=60, omega=56,
     for j, (theta_t, phi_t) in enumerate(angles):
         # transform relative coordinates
         theta_s_, phi_s_ = tilt(theta_t, phi_t, theta=theta_s, phi=phi_s)
-        theta_, phi_ = tilt(theta_t, phi_t + np.pi, theta=theta, phi=phi)
         _, alpha_ = tilt(theta_t, phi_t + np.pi, theta=np.pi / 2, phi=alpha)
 
         for i, (e, a, e_org, a_org) in enumerate(zip(theta_s_, phi_s_, theta_s, phi_s)):
 
-            # SKY INTEGRATION
-            gamma = np.arccos(np.cos(theta_) * np.cos(e_org) + np.sin(theta_) * np.sin(e_org) * np.cos(phi_ - a_org))
-            # Intensity
-            I_prez, I_00, I_90 = L(gamma, theta_), L(0., e_org), L(np.pi / 2, np.absolute(e_org - np.pi / 2))
-            # influence of sky intensity
-            I = (1. / (I_prez + eps) - 1. / (I_00 + eps)) * I_00 * I_90 / (I_00 - I_90 + eps)
-            chi = (4. / 9. - tau_L / 120.) * (np.pi - 2 * e_org)
-            Y_z = (4.0453 * tau_L - 4.9710) * np.tan(chi) - 0.2155 * tau_L + 2.4192
-            if uniform_poliriser:
-                Y = np.maximum(np.full_like(I_prez, Y_z), 0.)
-            else:
-                Y = np.maximum(Y_z * I_prez / (I_00 + eps), 0.)  # Illumination
-
-            # Degree of Polarisation
-            M_p = np.exp(-(tau_L - c1) / (c2 + eps))
-            LP = np.square(np.sin(gamma)) / (1 + np.square(np.cos(gamma)))
-            if uniform_poliriser:
-                P = np.ones_like(LP)
-            elif simple_pol:
-                P = np.clip(2. / np.pi * M_p * LP, 0., 1.)
-            else:
-                P = np.clip(2. / np.pi * M_p * LP * (theta_ * np.cos(theta_) + (np.pi/2 - theta_) * I), 0., 1.)
-
-            # Angle of polarisation
-            if uniform_poliriser:
-                A = np.full_like(P, a_org + np.pi)
-            else:
-                _, A = tilt(e_org, a_org + np.pi, theta_, phi_)
-
-            # create cloud disturbance
-            if noise > 0:
-                eta = np.absolute(np.random.randn(*P.shape)) < noise
-                if verbose:
-                    print "Noise level: %.4f (%.2f %%)" % (noise, 100. * eta.sum() / float(eta.size))
-                P[eta] = 0.  # destroy the polarisation pattern
-            else:
-                eta = np.zeros(1)
+            sky = Sky(theta_s=e_org, phi_s=a_org, theta_t=theta_t, phi_t=phi_t)
+            sky.verbose = verbose
+            Y, P, A = sky(theta, phi, noise=noise, uniform_polariser=uniform_polariser)
 
             # COMPUTATIONAL MODEL
 
@@ -160,7 +125,7 @@ def evaluate(n=60, omega=56,
                      np.cos(shift - theta) * np.sin(theta_t) *
                      np.cos(phi - phi_t))
             d_sun = (np.sin(shift - theta) * np.cos(theta_t) +
-                     np.cos(shift - theta) * np.sin(theta_t) *
+                     np.cos(-theta) * np.sin(theta_t) *
                      np.cos(phi - phi_t))
             gate = np.power(np.exp(-np.square(d_cl1) / (2. * np.square(sigma))), 1)
             gate_po = np.power(np.exp(-np.square(d_sun) / (2. * np.square(sigma))), 1)
@@ -169,8 +134,8 @@ def evaluate(n=60, omega=56,
             # w_cl1 = float(nb_cl1) / float(n) * np.sin(alpha[:, np.newaxis] - phi_cl1[np.newaxis]) * gate[:,
             #                                                                                               np.newaxis]
             # r_pol = Y
-            r_cl1 = Y.dot(w_cl1_po)
-            # r_cl1 = r_pol.dot(w_cl1)
+            # r_cl1 = Y.dot(w_cl1_po)
+            r_cl1 = r_pol.dot(w_cl1)
             # r_cl1 = 11./12. * r_pol.dot(w_cl1) + 1./12. * Y.dot(w_cl1_po)
 
             # Output (TCL) layer
@@ -201,7 +166,7 @@ def evaluate(n=60, omega=56,
             d_eff[i, j] = np.mean((p - 1.) / (p + 1.))
 
             if show_plots:
-                plt.figure("sensor-noise-%2d" % (100. * eta.sum() / float(eta.size)), figsize=(18, 4.5))
+                plt.figure("sensor-noise-%2d" % (100. * sky.eta.sum() / float(sky.eta.size)), figsize=(18, 4.5))
 
                 ax = plt.subplot(1, 12, 10)
                 plt.imshow(w_cl1, cmap="coolwarm", vmin=-1, vmax=1)
@@ -750,7 +715,7 @@ def heinze_experiment(n_tb1=0, eta=.0, absolute=False, uniform=False):
     tb1s = np.empty((0, sun_azi.shape[0], 8), dtype=sun_azi.dtype)
 
     for _ in np.linspace(0, 1, 100):
-        d_deg, d_eff, t, phi, r_tb1 = evaluate(uniform_poliriser=uniform,
+        d_deg, d_eff, t, phi, r_tb1 = evaluate(uniform_polariser=uniform,
                                                sun_azi=sun_azi, sun_ele=sun_ele, tilting=False, noise=eta)
         tb1s = np.vstack([tb1s, np.transpose(r_tb1, axes=(1, 0, 2))])
 
@@ -786,7 +751,7 @@ def heinze_1f(eta=.5, uniform=False):
     tb1s = np.empty((0, sun_azi.shape[0], 8), dtype=sun_azi.dtype)
 
     for _ in np.linspace(0, 1, 100):
-        d_deg, d_eff, t, phi, r_tb1 = evaluate(uniform_poliriser=uniform,
+        d_deg, d_eff, t, phi, r_tb1 = evaluate(uniform_polariser=uniform,
                                                sun_azi=sun_azi, sun_ele=sun_ele, tilting=False, noise=eta)
         tb1s = np.vstack([tb1s, np.transpose(r_tb1, axes=(1, 0, 2))])
         tb1_ids = np.vstack([tb1_ids, np.array([sun_azi] * 8).T.reshape((1, 36, 8))])
@@ -895,8 +860,8 @@ if __name__ == "__main__":
     # nb_neurons_test(mode=2, tilting=True, weighted=False, noise=.0)
     # gate_ring(sigma=np.deg2rad(26), shift=np.deg2rad(0))
     # noise2disturbance_plot()
-    gate_test(tilting=True, mode=2, filename="gate-costs-po.npz")
-    # tilt_test(weighted=True, use_default=False)
+    # gate_test(tilting=True, mode=2, filename="gate-costs-po.npz")
+    tilt_test(weighted=True, use_default=False)
     # structure_test(tilting=True, mode=1, n=60, omega=52, weighted=True)
     # for n_tb1 in xrange(8):
     #     heinze_experiment(n_tb1=n_tb1, absolute=False, uniform=True)
