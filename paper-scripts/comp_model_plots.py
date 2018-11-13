@@ -1,8 +1,8 @@
 from compoundeye.geometry import angles_distribution, fibonacci_sphere
 from sphere import azidist
 from sphere.transform import tilt
-from learn.loss_function import SensorObjective
 from sky.model import Sky, eps
+from compoundeye.dra import DRA
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,33 +17,13 @@ def evaluate(n=60, omega=56,
              use_default=False,
              weighted=True,
              fibonacci=False,
-             simple_pol=False, uniform_polariser=False,
+             uniform_polariser=False,
 
              # single evaluation
              sun_azi=None, sun_ele=None,
 
              # data parameters
              tilting=True, samples=1000, show_plots=False, show_structure=False, verbose=False):
-
-    # default parameters
-    tau_L = 2.
-    c1 = .6
-    c2 = 4.
-    AA, BB, CC, DD, EE = SensorObjective.T_L.dot(np.array([tau_L, 1.]))  # sky parameters
-    T_T = np.linalg.pinv(SensorObjective.T_L)
-    tau_L, c = T_T.dot(np.array([AA, BB, CC, DD, EE]))
-    tau_L /= c  # turbidity correction
-
-    # Prez. et. al. Luminance function
-    def L(cchi, zz):
-        ii = zz < (np.pi/2)
-        ff = np.zeros_like(zz)
-        if zz.ndim > 0:
-            ff[ii] = (1. + AA * np.exp(BB / (np.cos(zz[ii]) + eps)))
-        elif ii:
-            ff = (1. + AA * np.exp(BB / (np.cos(zz) + eps)))
-        pphi = (1. + CC * np.exp(DD * cchi) + EE * np.square(np.cos(cchi)))
-        return ff * pphi
 
     if tilting:
         angles = np.array([
@@ -108,17 +88,16 @@ def evaluate(n=60, omega=56,
 
             sky = Sky(theta_s=e_org, phi_s=a_org, theta_t=theta_t, phi_t=phi_t)
             sky.verbose = verbose
-            Y, P, A = sky(theta, phi, noise=noise, uniform_polariser=uniform_polariser)
 
             # COMPUTATIONAL MODEL
 
             # Input (POL) layer -- Photo-receptors
-            s_1 = Y * (np.square(np.sin(A - alpha_)) + np.square(np.cos(A - alpha_)) * np.square(1. - P))
-            s_2 = Y * (np.square(np.cos(A - alpha_)) + np.square(np.sin(A - alpha_)) * np.square(1. - P))
-            r_1, r_2 = np.sqrt(s_1), np.sqrt(s_2)
-            # r_1, r_2 = np.log(s_1 + 1.), np.log(s_2 + 1.)
-            r_op, r_po = r_1 - r_2, r_1 + r_2
-            r_pol = r_op / (r_po + eps)
+
+            dra = DRA(n=n, omega=omega)
+            dra.theta_t = theta_t
+            dra.phi_t = phi_t
+            r_pol = dra(sky, noise=noise, uniform_polariser=uniform_polariser)
+            r_po = dra.r_po
 
             # Tilting (SOL) layer
             d_cl1 = (np.sin(shift - theta) * np.cos(theta_t) +
@@ -134,7 +113,7 @@ def evaluate(n=60, omega=56,
             # w_cl1 = float(nb_cl1) / float(n) * np.sin(alpha[:, np.newaxis] - phi_cl1[np.newaxis]) * gate[:,
             #                                                                                               np.newaxis]
             # r_pol = Y
-            # r_cl1 = Y.dot(w_cl1_po)
+            # r_cl1 = r_po.dot(w_cl1_po)
             r_cl1 = r_pol.dot(w_cl1)
             # r_cl1 = 11./12. * r_pol.dot(w_cl1) + 1./12. * Y.dot(w_cl1_po)
 

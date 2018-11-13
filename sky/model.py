@@ -36,7 +36,7 @@ class Sky(object):
         self.__aop = np.full(1, np.nan)  # type: np.ndarray
         self.__dop = np.full(1, np.nan)  # type: np.ndarray
         self.__y = np.full(1, np.nan)  # type: np.ndarray
-        self.__eta = np.full(1, np.nan)  # type: np.ndarray
+        self.__eta = np.full(1, False)  # type: np.ndarray
 
         self.verbose = False  # type: bool
         self.__is_generated = False  # type: bool
@@ -100,7 +100,7 @@ class Sky(object):
 
         # create cloud disturbance
         if noise is not None and not np.isnan(noise) and noise > 0:
-            eta = np.cast(np.absolute(np.random.randn(*p.shape)) < noise, int)
+            eta = np.cast(np.absolute(np.random.randn(*p.shape)) < noise, bool)
             if self.verbose:
                 print "Noise level: %.4f (%.2f %%)" % (noise, 100. * eta.sum() / float(eta.size))
         else:
