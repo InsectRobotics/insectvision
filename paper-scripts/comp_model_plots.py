@@ -159,8 +159,8 @@ def evaluate(n=60, omega=56,
             d_cl1 = (np.sin(shift - theta) * np.cos(theta_t) +
                      np.cos(shift - theta) * np.sin(theta_t) *
                      np.cos(phi - phi_t))
-            d_sun = (np.sin(-theta) * np.cos(theta_t) +
-                     np.cos(-theta) * np.sin(theta_t) *
+            d_sun = (np.sin(shift - theta) * np.cos(theta_t) +
+                     np.cos(shift - theta) * np.sin(theta_t) *
                      np.cos(phi - phi_t))
             gate = np.power(np.exp(-np.square(d_cl1) / (2. * np.square(sigma))), 1)
             gate_po = np.power(np.exp(-np.square(d_sun) / (2. * np.square(sigma))), 1)
@@ -893,9 +893,9 @@ def elevation_test(**kwargs):
 if __name__ == "__main__":
     # noise_test()
     # nb_neurons_test(mode=2, tilting=True, weighted=False, noise=.0)
-    gate_ring(sigma=np.deg2rad(26), shift=np.deg2rad(0))
+    # gate_ring(sigma=np.deg2rad(26), shift=np.deg2rad(0))
     # noise2disturbance_plot()
-    # gate_test(tilting=True, mode=2, filename="gate-costs-po.npz")
+    gate_test(tilting=True, mode=2, filename="gate-costs-po.npz")
     # tilt_test(weighted=True, use_default=False)
     # structure_test(tilting=True, mode=1, n=60, omega=52, weighted=True)
     # for n_tb1 in xrange(8):
