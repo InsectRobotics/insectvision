@@ -1,0 +1,127 @@
+# Standard relative luminance distribution parameters according to [1].
+# They are based on six grous of a and b values for the gradation function and
+# six groups of c, d and e values for the indicatrix function.
+#
+# [1] Darula, Stanislav, and Richard Kittler. "CIE general sky standard defining luminance distributions." Proceedings eSim (2002): 11-13.
+
+gradation:
+  1:
+    a:  4.00
+    b: -0.70
+  2:
+    a:  1.10
+    b: -0.80
+  3:
+    a:  0.00
+    b: -1.00
+  4:
+    a: -1.00
+    b: -0.55
+  5:
+    a: -1.00
+    b: -0.32
+  6:
+    a: -1.00
+    b: -0.15
+indicatrix:
+  1:
+    c:  0.00
+    d: -1.00
+    e:  0.00
+  2:
+    c:  2.00
+    d: -1.50
+    e:  0.15
+  3:
+    c:  5.00
+    d: -2.50
+    e:  0.30
+  4:
+    c: 10.00
+    d: -3.00
+    e:  0.45
+  5:
+    c: 16.00
+    d: -3.00
+    e:  0.30
+  6:
+    c: 24.00
+    d: -2.80
+    e:  0.15
+type:
+  - # type 1
+    gradation: 1
+    indicatrix: 1
+    description:
+      - "CIE Standard Overcast Sky, alternative form"
+      - "Steep luminance gradation towards zenith, azimuthal uniformity."
+  - # type 2
+    gradation: 1
+    indicatrix: 2
+    description:
+      - "Overcast, with steep luminance gradation and slight brightening towards the sun."
+  - # type 3
+    gradation: 2
+    indicatrix: 1
+    description:
+      - "Overcast, moderately graded with azimuthal uniformity."
+  - # type 4
+    gradation: 2
+    indicatrix: 2
+    description:
+      - "Overcast, moderately graded and slightly brightening towards the sun"
+  - # type 5
+    gradation: 3
+    indicatrix: 1
+    description:
+      - "Sky uniform luminance"
+  - # type 6
+    gradation: 3
+    indicatrix: 2
+    description:
+      - "Partly cloudy sky, no gradation towards zenith, slight brighening towards the sun"
+  - # type 7
+    gradation: 3
+    indicatrix: 3
+    description:
+      - "Partly cloudy sky, no gradation towards zenith, brighter circumsolar region"
+  - # type 8
+    gradation: 3
+    indicatrix: 4
+    description:
+      - "Partly cloudy sky, nogradation towards zenith, distinct solar corona"
+  - # type 9
+    gradation: 4
+    indicatrix: 2
+    description:
+      - "Partly cloudy, with the obscured sun"
+  - # type 10
+    gradation: 4
+    indicatrix: 3
+    description:
+      - "Partly cloudy, with brigher circumsolar region"
+  - # type 11
+    gradation: 4
+    indicatrix: 4
+    description:
+      - "White-blue sky with distict solar corona"
+  - # type 12
+    gradation: 5
+    indicatrix: 4
+    description:
+      - "CIE Standard Clear Sky, low illuminance turbidity"
+  - # type 13
+    gradation: 5
+    indicatrix: 5
+    description:
+      - "CIE Standard Clear Sky, polluted atmosphere"
+  - # type 14
+    gradation: 6
+    indicatrix: 5
+    description:
+      - "Cloudless turbid sky with broad solar corona"
+  - # type 14
+    gradation: 6
+    indicatrix: 6
+    description:
+      - "White-blue turbid sky with broad solar corona"
