@@ -1,293 +1,198 @@
-import numpy as np
-from copy import copy
-from utils import get_microvilli_angle
-# from sky import SkyModel
+from geometry import angles_distribution, fibonacci_sphere
+from environment import Environment, spectrum, spectrum_influence, eps
+from sphere.transform import tilt
 
-SkyBlue = np.array([.05, .53, .79])[..., np.newaxis]
-# SkyBlue = np.array([1.0, 1.0, 1.0])[..., np.newaxis]
+import numpy as np
 
 
 class CompoundEye(object):
 
-    def __init__(self, ommatidia, central_microvili=(np.pi/6, np.pi/18), noise_factor=.1,
-                 activate_dop_sensitivity=False):
-
-        # the eye facing direction
-        self.yaw_pitch_roll = np.zeros(3)
-
-        # eye specifications (ommatidia topography)
-        self._sky = SkyModel()
-        self.theta_global = ommatidia[:, 0]
-        self.phi_global = ommatidia[:, 1]
-        if ommatidia.shape[1] > 3:
-            self._dop_filter = ommatidia[:, 3]
-            self._aop_filter = ommatidia[:, 2]
-        elif ommatidia.shape[1] > 2:
-            self._aop_filter = ommatidia[:, 2]
-            _, self._dop_filter = get_microvilli_angle(
-                self.theta_global, self.phi_global, theta=central_microvili[0], phi=central_microvili[1], n=noise_factor
-            )
-        else:
-            self._aop_filter, self._dop_filter = get_microvilli_angle(
-                self.theta_global, self.phi_global, theta=central_microvili[0], phi=central_microvili[1], n=noise_factor
-            )
-        if not activate_dop_sensitivity:
-            self._dop_filter[:] = 1.
-        self._active_pol_filters = True
-
-        self._channel_filters = {}
-        self._update_filters()
-
-    def activate_pol_filters(self, value):
+    def __init__(self, n, omega, rho, nb_pr=8, theta_c=0., phi_c=0., name="compound-eye"):
         """
 
-        :param value:
-        :type value: bool
+        :param n: number of ommatidia
+        :type n: int
+        :param omega: receiptive field (degrees)
+        :type omega: float
+        :param nb_pr: number of photo-receptors per ommatidium
+        :type nb_pr: int
+        :param rho: acceptance angle (degrees)
+        :type rho: float, np.ndarray
+        """
+        try:
+            self.theta, self.phi, fit = angles_distribution(n, float(omega))
+        except ValueError:
+            self.theta = np.empty(0, dtype=np.float32)
+            self.phi = np.empty(0, dtype=np.float32)
+            fit = False
+
+        if not fit or n > 100:
+            self.theta, self.phi = fibonacci_sphere(n, float(omega))
+
+        rho = np.deg2rad(rho)
+        self.rho = rho if rho.size == n else np.full(n, rho)
+
+        # by default the phoro-receptors are white light sensitive and no POL sensitive
+        self.rhabdom = np.array([[spectrum["w"]] * n] * nb_pr)  # spectrum sensitivity of each rhabdom
+        self.mic_l = np.zeros((nb_pr, n), dtype=float)  # local (in the ommatidium) angle of microvilli
+        self.mic_a = (self.phi + np.pi/2) % (2 * np.pi) - np.pi  # global (in the compound eye) angle of mictovilli
+        self.mic_p = np.zeros((nb_pr, n), dtype=float)  # polarisation sensitivity of microvilli
+        self._theta_c = theta_c
+        self._phi_c = phi_c
+        self._theta_t = 0.
+        self._phi_t = 0.
+        self.__r = np.full((n), np.nan)
+
+        self._is_called = False
+
+    def __call__(self, env, *args, **kwargs):
+        """
+
+        :param env: the environment where the photorectors can percieve light
+        :type env: Environment
+        :param args: unlabeled arguments
+        :type args: list
+        :param kwargs: labeled arguments
+        :type kwargs: dict
         :return:
         """
-        old_value = self._active_pol_filters
-        self._active_pol_filters = value
-        if value != old_value:
-            self._update_filters()
+        env.theta_t = self.theta_t
+        env.phi_t = self.phi_t
+
+        _, alpha = tilt(self.theta_t, self.phi_t + np.pi, theta=np.pi / 2, phi=self.mic_a)
+        y, p, a = env(self.theta, self.phi, *args, **kwargs)
+
+        ry = spectrum_influence(y, self.rhabdom)
+        s = ry * ((np.square(np.sin(a - alpha + self.mic_l)) +
+                   np.square(np.cos(a - alpha + self.mic_l)) * np.square(1. - p)) * self.mic_p + (1. - self.mic_p))
+        self.__r = np.sqrt(s)
+
+        self._is_called = True
+
+        return self.__r
 
     @property
-    def sky(self):
-        return self._sky
+    def theta_t(self):
+        return self._theta_t
 
-    @sky.setter
-    def sky(self, value):
-        value = value.copy()
-        value.theta_z = self.sky.theta_z
-        value.phi_z = self.sky.phi_z
-        self._sky = value
+    @theta_t.setter
+    def theta_t(self, value):
+        theta_t, phi_t = tilt(self._theta_c, self._phi_c - np.pi, theta=self._theta_t, phi=self._phi_t)
+        self._theta_t, phi_t = tilt(self._theta_c, self._phi_c, theta=value, phi=self.phi_t)
 
     @property
-    def dop_filter(self):
-        if self._active_pol_filters:
-            return self._dop_filter
-        else:
-            return np.zeros_like(self._dop_filter)
+    def phi_t(self):
+        return self._phi_t
+
+    @phi_t.setter
+    def phi_t(self, value):
+        theta_t, phi_t = tilt(self._theta_c, self._phi_c - np.pi, theta=self._theta_t, phi=self._phi_t)
+        theta_t, self._phi_t = tilt(self._theta_c, self._phi_c, theta=self.theta_t, phi=value)
 
     @property
-    def L(self):
-        ks = self._channel_filters.keys()
-        k = []
-        for kk in ['r', 'g', 'b', 'uv']:
-            if kk in ks:
-                k.append(kk)
-        i, d, a = self.sky.L / np.sqrt(2), self.DOP, self.AOP
-        lum_channels = np.array([
-            pf(cf(i), a, d) for cf, pf in [self._channel_filters[c] for c in k]
-        ]).T
-        lum_channels[np.isclose(i, 0.)] *= 0.
-        return np.clip(lum_channels, 0, 1)
+    def r(self):
+        assert self._is_called, "No light has passed through the sensors yet."
+        return self._r
 
-    @property
-    def DOP(self):
-        return self.sky.DOP
 
-    @property
-    def AOP(self):
-        return self.sky.AOP % (2 * np.pi)
+class DRA(CompoundEye):
 
-    @property
-    def theta_global(self):
-        return (self.sky.theta_z + np.pi) % (2 * np.pi) - np.pi  # type: np.ndarray
-
-    @theta_global.setter
-    def theta_global(self, value):
+    def __init__(self, n=60, omega=56, rho=5.4, nb_pr=8, theta_c=0., phi_c=0., name="dra"):
         """
-        :param value: the ommatidia elevation
-        :type value: np.ndarray
-        :return:
+
+        :param n: number of ommatidia
+        :type n: int
+        :param omega: receiptive field (degrees)
+        :type omega: float
+        :param rho: acceptance angle (degrees)
+        :type rho: float, np.ndarray
         """
-        self.sky.theta_z = (value + np.pi) % (2 * np.pi) - np.pi
+        super(DRA, self).__init__(n=n, omega=omega, rho=rho, nb_pr=nb_pr, theta_c=0., phi_c=0., name=name)
+
+        # set as default the desert ants' ommatidia set-up
+        self.rhabdom = np.array([[spectrum["uv"], spectrum["uv"], spectrum["w"], spectrum["uv"],
+                                  spectrum["uv"], spectrum["uv"], spectrum["w"], spectrum["uv"]]] * n).T
+        self.mic_l = np.array([[0., np.pi/2, np.pi/2, np.pi/2, 0., np.pi/2, np.pi/2, np.pi/2]] * n).T
+        self.mic_p[:] = 1.
+        self.__r_op = np.full(n, np.nan)
+        self.__r_po = np.full(n, np.nan)
+        self.__r_pol = np.full(n, np.nan)
+
+        self.__is_called = False
+
+    def __call__(self, my_sky, *args, **kwargs):
+        r = super(DRA, self).__call__(my_sky, *args, **kwargs)
+
+        self.__r_op = np.sum(np.cos(2 * self.mic_l) * r, axis=0)
+        self.__r_po = np.sum(r, axis=0)
+        self.__r_pol = self.__r_op / (self.__r_po + eps)
+        self.__r_po = 2. * self.__r_po / np.max(self.__r_po) - 1.
+
+        self.__is_called = True
+
+        return self.r_pol
 
     @property
-    def phi_global(self):
-        return (self.sky.phi_z + np.pi) % (2 * np.pi) - np.pi
-
-    @phi_global.setter
-    def phi_global(self, value):
-        self.sky.phi_z = (value + np.pi) % (2 * np.pi) - np.pi
+    def r_pol(self):
+        assert self._is_called, "No light has passed through the sensors yet."
+        return self.__r_pol
 
     @property
-    def theta_local(self):
-        theta_z, phi_z = SkyModel.rotate(self.theta_global, self.phi_global, yaw=-self.yaw)
-        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, pitch=-self.pitch)
-        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, roll=-self.roll)
-        return (theta_z + np.pi) % (2 * np.pi) - np.pi
+    def r_po(self):
+        assert self._is_called, "No light has passed through the sensors yet."
+        return self.__r_po
 
     @property
-    def phi_local(self):
-        theta_z, phi_z = SkyModel.rotate(self.theta_global, self.phi_global, yaw=-self.yaw)
-        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, pitch=-self.pitch)
-        theta_z, phi_z = SkyModel.rotate(theta_z, phi_z, roll=-self.roll)
-        return (phi_z + np.pi) % (2 * np.pi) - np.pi
-
-    @property
-    def yaw(self):
-        return self.yaw_pitch_roll[0]
-
-    @yaw.setter
-    def yaw(self, value):
-        self.yaw_pitch_roll[0] = value
-
-    @property
-    def pitch(self):
-        return self.yaw_pitch_roll[1]
-
-    @pitch.setter
-    def pitch(self, value):
-        self.yaw_pitch_roll[1] = value
-
-    @property
-    def roll(self):
-        return self.yaw_pitch_roll[2]
-
-    @roll.setter
-    def roll(self, value):
-        self.yaw_pitch_roll[2] = value
-
-    def rotate(self, yaw=0., pitch=0., roll=0.):
-        sky = self.sky
-
-        # rotate back to the default orientation
-        sky = SkyModel.rotate_sky(sky, yaw=-self.yaw)
-        sky = SkyModel.rotate_sky(sky, pitch=-self.pitch)
-        sky = SkyModel.rotate_sky(sky, roll=-self.roll)
-
-        # update the facing direction of the eye
-        self.yaw_pitch_roll = self.rotate_centre(
-            self.yaw_pitch_roll, yaw=yaw, pitch=-pitch, roll=roll
-        )
-
-        # rotate the sky according to the new facing direction
-        sky = SkyModel.rotate_sky(
-            sky, yaw=self.yaw, pitch=self.pitch, roll=self.roll
-        )
-
-        self.sky.theta_z = sky.theta_z
-        self.sky.phi_z = sky.phi_z
-
-        self._update_filters()
-
-    def _update_filters(self):
-
-        self._channel_filters = {
-            "g": [
-                WLFilter(WLFilter.RGB_WL[0], name="GreenWLFilter"),
-                POLFilter(self._aop_filter - self.yaw + np.pi / 4, self.dop_filter, name="GreenPOLFilter")
-            ],
-            "b": [
-                WLFilter(WLFilter.RGB_WL[1], name="BlueWLFilter"),
-                POLFilter(self._aop_filter - self.yaw + np.pi / 2, self.dop_filter, name="BluePOLFilter")
-            ],
-            "uv": [
-                WLFilter(WLFilter.RGB_WL[2], name="UVWLFilter"),
-                POLFilter(self._aop_filter - self.yaw, self.dop_filter, name="UVPOLFilter")
-            ]
-        }
-
-    @staticmethod
-    def rotate_centre(centre, yaw=0., pitch=0., roll=0.):
-        # centre[[1, 0]] = SkyModel.rotate(centre[1], centre[0], yaw=yaw, pitch=pitch, roll=roll)
-        centre[[1, 0]] = SkyModel.rotate(np.pi / 2 - centre[1], np.pi - centre[0], yaw=yaw, pitch=-pitch, roll=-roll)
-
-        centre[0] = (2 * np.pi - centre[0]) % (2 * np.pi) - np.pi
-        centre[1] = (3 * np.pi/2 - centre[1]) % (2 * np.pi) - np.pi
-        centre[2] = (centre[2] + roll + np.pi) % (2 * np.pi) - np.pi
-
-        return centre
+    def r_op(self):
+        assert self._is_called, "No light has passed through the sensors yet."
+        return self.__r_op
 
 
-class Filter(object):
-    __counter = 0
+class POLCompassDRA(DRA):
 
-    def __init__(self, name=None):
-        if name is not None:
-            self.name = name
-        else:
-            Filter.__counter += 1
-            self.name = "Filter-%d" % Filter.__counter
-
-    def __call__(self, *args, **kwargs):
-        assert len(args) > 0, "Not enough arguments."
-        return args[0]
+    def __init__(self, n=60, omega=56, rho=5.4, nb_pr=2):
+        super(POLCompassDRA, self).__init__(n=n, omega=omega, rho=rho, nb_pr=nb_pr, name="pol")
+        self.rhabdom = np.array([[spectrum["uv"], spectrum["uv"]]] * n).T
+        self.mic_l = np.array([[0., np.pi / 2]] * n).T
 
 
-class WLFilter(Filter):
-    Red_WL = 685.
-    Green_WL = 532.5
-    Blue_WL = 472.5
-    UV_WL = 300.
-    RGB_WL = np.array([Red_WL, Green_WL, Blue_WL])
-    GBUV_WL = np.array([Green_WL, Blue_WL, UV_WL])
+def visualise(my_sky, y):
+    import matplotlib.pyplot as plt
 
-    def __init__(self, wl_max, wl_min=None, name=None):
-        super(WLFilter, self).__init__(name)
-        self.alpha, self.beta = self.__build_map()
-        if wl_min is not None:
-            wl_max = (wl_max + wl_min) / 2.
-        self.weight = self.wl2int(wl_max)
+    plt.figure("Luminance", figsize=(4.5, 4.5))
+    ax = plt.subplot(111, polar=True)
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
 
-    def __call__(self, *args, **kwargs):
-        i0 = copy(super(WLFilter, self).__call__(*args, **kwargs))
-        i0 += self.weight * (1. - i0)
-        return np.clip(i0, 0., 1.)
+    theta_s, phi_s = tilt(my_sky.theta_t, my_sky.phi_t, theta=my_sky.theta_s, phi=my_sky.phi_s)
+    ax.scatter(my_sky.phi, my_sky.theta, s=100, c=y, marker='.', cmap='coolwarm', vmin=-1, vmax=1)
+    ax.scatter(phi_s, theta_s, s=100, edgecolor='black', facecolor='yellow')
+    ax.scatter(my_sky.phi_t, my_sky.theta_t, s=50, edgecolor='black', facecolor='greenyellow')
+    ax.set_ylim([0, np.pi/2])
+    ax.set_yticks([])
+    ax.set_xticks(np.linspace(0, 2*np.pi, 8, endpoint=False))
+    ax.set_xticklabels([r'$0^\circ$ (N)', r'$45^\circ$ (NE)', r'$90^\circ$ (E)', r'$135^\circ$ (SE)',
+                        r'$180^\circ$ (S)', r'$-135^\circ$ (SW)', r'$-90^\circ$ (W)', r'$-45^\circ$ (NW)'])
 
-    def wl2int(self, wl):
-        return self.alpha / np.power(wl, 4) + self.beta
-
-    @classmethod
-    def __build_map(cls):
-        A = np.array([1 / np.power(cls.RGB_WL, 4), np.ones(3)]).T
-        W = np.linalg.pinv(A.T).T.dot(SkyBlue)
-        return W
-
-
-class POLFilter(Filter):
-
-    def __init__(self, angle, degree=1., name=None):
-        super(POLFilter, self).__init__(name)
-        self.angle = angle
-        self.degree = degree
-
-    def __call__(self, *args, **kwargs):  # TODO: not working properly
-        assert len(args) > 2, "Not enough arguments."
-        lum, aop, dop = args[:3]
-        if 'lum' in kwargs.keys():
-            lum = kwargs['lum']
-        if 'aop' in kwargs.keys():
-            aop = kwargs['aop']
-        if 'dop' in kwargs.keys():
-            dop = kwargs['dop']
-        # print self.name,
-
-        i0 = lum / (1. - dop)
-        # create the light coordinates
-        d = (aop - self.angle + np.pi) % (2 * np.pi) - np.pi
-        E1 = np.array([
-            np.cos(d),
-            np.sin(d)
-        ]) * np.sqrt(i0)
-        E2 = np.array([
-            np.cos(d + np.pi/2),
-            np.sin(d + np.pi/2)
-        ]) * np.sqrt(i0) * (1. - dop)
-
-        # filter the separate coordinates
-        E1[1] *= (1. - self.degree)
-        E2[1] *= (1. - self.degree)
-
-        # the total intensity is the integration of the ellipse
-        E = np.array([np.sqrt(np.square(E1).sum(axis=0)), np.sqrt(np.square(E2).sum(axis=0))])
-        return np.sqrt(np.square(E).sum(axis=0))
-        # A = np.sqrt(np.square(E1).sum(axis=0)) * np.sqrt(np.square(E2).sum(axis=0))
-        # return A
+    plt.show()
 
 
 if __name__ == "__main__":
+    from environment import Sky
+
+    sky = Sky(theta_s=np.pi/3)
+    dra = POLCompassDRA()
+    dra.theta_t = np.pi/6
+    dra.phi_t = np.pi/3
+    # s = dra(sky)
+    r_pol = dra(sky)
+    r_po = dra.r_pol
+    # print s.shape
+
+    visualise(sky, r_po)
+
+
+if __name__ == "__main_2__":
     from datetime import datetime
     from ephem import city
     from beeeye import load_both_eyes

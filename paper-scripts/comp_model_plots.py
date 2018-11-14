@@ -1,8 +1,8 @@
 from compoundeye.geometry import angles_distribution, fibonacci_sphere
 from sphere import azidist
 from sphere.transform import tilt
-from sky.model import Sky, eps
-from compoundeye.dra import DRA
+from environment import Sky, eps
+from compoundeye.model import POLCompassDRA
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -93,7 +93,7 @@ def evaluate(n=60, omega=56,
 
             # Input (POL) layer -- Photo-receptors
 
-            dra = DRA(n=n, omega=omega)
+            dra = POLCompassDRA(n=n, omega=omega)
             dra.theta_t = theta_t
             dra.phi_t = phi_t
             r_pol = dra(sky, noise=noise, uniform_polariser=uniform_polariser)
@@ -115,7 +115,7 @@ def evaluate(n=60, omega=56,
             # r_pol = Y
             # r_cl1 = r_po.dot(w_cl1_po)
             r_cl1 = r_pol.dot(w_cl1)
-            # r_cl1 = 11./12. * r_pol.dot(w_cl1) + 1./12. * Y.dot(w_cl1_po)
+            # r_cl1 = 11./12. * r_pol.dot(w_cl1) + 1./12. * r_po.dot(w_cl1_po)
 
             # Output (TCL) layer
             # w_tb1 = np.eye(nb_tb1)

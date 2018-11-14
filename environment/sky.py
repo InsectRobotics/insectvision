@@ -1,7 +1,8 @@
-import numpy as np
+from base import Environment
 from sphere.transform import tilt
+from utils import eps
 
-eps = np.finfo(float).eps  # type: float
+import numpy as np
 
 # Transformation matrix of turbidity to luminance coefficients
 T_L = np.array([[ 0.1787, -1.4630],
@@ -11,9 +12,9 @@ T_L = np.array([[ 0.1787, -1.4630],
                 [-0.0670,  0.3703]])
 
 
-class Sky(object):
+class Sky(Environment):
 
-    def __init__(self, theta_s=0., phi_s=0., theta_t=0., phi_t=0.):
+    def __init__(self, theta_s=0., phi_s=0., theta_t=0., phi_t=0., name="sky"):
         """
 
         :param theta_s: sun elevation (distance from zenith)
@@ -21,6 +22,7 @@ class Sky(object):
         :param theta_t: elevation of observer's zenith point with respect to the sky zenith point
         :param phi_t: azimuth of observer's zenith point with respect to the sky zenith point
         """
+        super(Sky, self).__init__(name=name)
         self.__a, self.__b, self.__c, self.__d, self.__e = 0., 0., 0., 0., 0.
         self.__tau_L = 2.  # type: float
         self._update_luminance_coefficients(self.__tau_L)

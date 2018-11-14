@@ -1,5 +1,8 @@
-import numpy as np
 from sphere.transform import eleadj
+
+import numpy as np
+
+eps = np.finfo(float).eps  # type: float
 
 
 def sky_clearness(Z, Dh, I, kapa=1.041):
