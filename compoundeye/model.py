@@ -1,6 +1,7 @@
 from geometry import angles_distribution, fibonacci_sphere
 from environment import Environment, spectrum, spectrum_influence, eps
 from sphere.transform import tilt
+from sphere import angdist
 
 import numpy as np
 
@@ -29,8 +30,17 @@ class CompoundEye(object):
         if not fit or n > 100:
             self.theta, self.phi = fibonacci_sphere(n, float(omega))
 
+        # create transformation matrix of the perceived light with respect to the optical properties of the eye
         rho = np.deg2rad(rho)
         self.rho = rho if rho.size == n else np.full(n, rho)
+        sph = np.array([self.theta, self.phi])
+        i1, i2 = np.meshgrid(np.arange(n), np.arange(n))
+        i1, i2 = i1.flatten(), i2.flatten()
+        sph1, sph2 = sph[:, i1], sph[:, i2]
+        d = np.square(angdist(sph1, sph2).reshape((n, n)))
+        sigma = np.square([self.rho] * n) + np.square([self.rho] * n).T
+        self._rho_gaussian = np.exp(-d/sigma)
+        self._rho_gaussian /= np.sum(self._rho_gaussian, axis=1)
 
         # by default the phoro-receptors are white light sensitive and no POL sensitive
         self.rhabdom = np.array([[spectrum["w"]] * n] * nb_pr)  # spectrum sensitivity of each rhabdom
@@ -62,7 +72,13 @@ class CompoundEye(object):
         _, alpha = tilt(self.theta_t, self.phi_t + np.pi, theta=np.pi / 2, phi=self.mic_a)
         y, p, a = env(self.theta, self.phi, *args, **kwargs)
 
+        # influence of the acceptance angle on the luminance and DOP
+        y = y.dot(self._rho_gaussian)
+        p = p.dot(self._rho_gaussian)
+
+        # influence of the wavelength on the perceived light
         ry = spectrum_influence(y, self.rhabdom)
+
         s = ry * ((np.square(np.sin(a - alpha + self.mic_l)) +
                    np.square(np.cos(a - alpha + self.mic_l)) * np.square(1. - p)) * self.mic_p + (1. - self.mic_p))
         self.__r = np.sqrt(s)
@@ -186,7 +202,7 @@ if __name__ == "__main__":
     dra.phi_t = np.pi/3
     # s = dra(sky)
     r_pol = dra(sky)
-    r_po = dra.r_pol
+    r_po = dra.r_po
     # print s.shape
 
     visualise(sky, r_po)

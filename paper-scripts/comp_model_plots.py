@@ -1,7 +1,8 @@
 from compoundeye.geometry import angles_distribution, fibonacci_sphere
 from sphere import azidist
 from sphere.transform import tilt
-from environment import Sky, eps
+from environment import Sky, eps, spectrum_influence, spectrum
+from environment.sky import T_L
 from compoundeye.model import POLCompassDRA
 
 import matplotlib.pyplot as plt
@@ -10,10 +11,10 @@ import numpy as np
 tb1_names = ['L5/R4', 'L6/R3', 'L7/R2', 'L8/R1', 'L1/R8', 'L2/R7', 'L3/R6', 'L4/R5']
 
 
-def evaluate(n=60, omega=56,
+def evaluate_slow(n=60, omega=56,
              noise=0.,
-             nb_cl1=8, sigma=np.deg2rad(13), shift=np.deg2rad(40),
-             nb_tb1=8,
+             nb_cl1=8, sigma_pol=np.deg2rad(13), shift_pol=np.deg2rad(40),
+             nb_tb1=8, sigma_sol=np.deg2rad(13), shift_sol=np.deg2rad(40),
              use_default=False,
              weighted=True,
              fibonacci=False,
@@ -97,25 +98,29 @@ def evaluate(n=60, omega=56,
             dra.theta_t = theta_t
             dra.phi_t = phi_t
             r_pol = dra(sky, noise=noise, uniform_polariser=uniform_polariser)
-            r_po = dra.r_po
+            r_sol = dra.r_po
 
             # Tilting (SOL) layer
-            d_cl1 = (np.sin(shift - theta) * np.cos(theta_t) +
-                     np.cos(shift - theta) * np.sin(theta_t) *
+            d_pol = (np.sin(shift_pol - theta) * np.cos(theta_t) +
+                     np.cos(shift_pol - theta) * np.sin(theta_t) *
                      np.cos(phi - phi_t))
-            d_sun = (np.sin(shift - theta) * np.cos(theta_t) +
-                     np.cos(-theta) * np.sin(theta_t) *
+            gate_pol = np.power(np.exp(-np.square(d_pol) / (2. * np.square(sigma_pol))), 1)
+            z_pol = -float(nb_cl1) / float(n)
+            w_cl1_pol = z_pol * np.sin(phi_cl1[np.newaxis] - alpha[:, np.newaxis]) * gate_pol[:, np.newaxis]
+
+            d_sol = (np.sin(shift_sol - theta) * np.cos(theta_t) +
+                     np.cos(shift_sol - theta) * np.sin(theta_t) *
                      np.cos(phi - phi_t))
-            gate = np.power(np.exp(-np.square(d_cl1) / (2. * np.square(sigma))), 1)
-            gate_po = np.power(np.exp(-np.square(d_sun) / (2. * np.square(sigma))), 1)
-            w_cl1_po = float(nb_cl1) / float(n) * np.sin(phi_cl1[np.newaxis] - alpha[:, np.newaxis]) * gate_po[:, np.newaxis]
-            w_cl1 = -float(nb_cl1) / float(n) * np.sin(phi_cl1[np.newaxis] - alpha[:, np.newaxis]) * gate[:, np.newaxis]
-            # w_cl1 = float(nb_cl1) / float(n) * np.sin(alpha[:, np.newaxis] - phi_cl1[np.newaxis]) * gate[:,
-            #                                                                                               np.newaxis]
-            # r_pol = Y
-            # r_cl1 = r_po.dot(w_cl1_po)
-            r_cl1 = r_pol.dot(w_cl1)
-            # r_cl1 = 11./12. * r_pol.dot(w_cl1) + 1./12. * r_po.dot(w_cl1_po)
+            gate_sol = np.power(np.exp(-np.square(d_sol) / (2. * np.square(sigma_sol))), 1)
+            z_sol = float(nb_cl1) / float(n)
+            w_cl1_sol = z_sol * np.sin(phi_cl1[np.newaxis] - alpha[:, np.newaxis]) * gate_sol[:, np.newaxis]
+
+            o = 1./64.
+            f_pol, f_sol = .5 * np.power(2*theta_t/np.pi, o), .5 * (1 - np.power(2*theta_t/np.pi, o))
+            r_cl1_pol = r_pol.dot(w_cl1_pol)
+            r_cl1_sol = r_sol.dot(w_cl1_sol)
+            r_cl1 = f_pol * r_cl1_pol + f_sol * r_cl1_sol
+            # r_cl1 = r_cl1_sol
 
             # Output (TCL) layer
             # w_tb1 = np.eye(nb_tb1)
@@ -124,8 +129,8 @@ def evaluate(n=60, omega=56,
             r_tb1 = r_cl1.dot(w_tb1)
 
             if use_default:
-                w = -float(nb_tb1) / (2. * float(n)) * np.sin(phi_tb1[np.newaxis] - alpha[:, np.newaxis]) * gate[:,
-                                                                                                            np.newaxis]
+                w = -float(nb_tb1) / (2. * float(n)) * np.sin(
+                    phi_tb1[np.newaxis] - alpha[:, np.newaxis]) * gate_pol[:, np.newaxis]
                 r_tb1 = r_pol.dot(w)
 
             # decode response - FFT
@@ -148,7 +153,7 @@ def evaluate(n=60, omega=56,
                 plt.figure("sensor-noise-%2d" % (100. * sky.eta.sum() / float(sky.eta.size)), figsize=(18, 4.5))
 
                 ax = plt.subplot(1, 12, 10)
-                plt.imshow(w_cl1, cmap="coolwarm", vmin=-1, vmax=1)
+                plt.imshow(w_cl1_pol, cmap="coolwarm", vmin=-1, vmax=1)
                 plt.xlabel("CBL", fontsize=16)
                 plt.xticks([0, 15], ["1", "16"])
                 plt.yticks([0, 59], ["1", "60"])
@@ -184,7 +189,7 @@ def evaluate(n=60, omega=56,
                 ax.tick_params(axis='both', which='minor', labelsize=16)
 
                 ax = plt.subplot(1, 4, 2, polar=True)
-                ax.scatter(phi, theta, s=150, c=r_pol * gate, marker='o', cmap="coolwarm", vmin=-1, vmax=1)
+                ax.scatter(phi, theta, s=150, c=r_pol * gate_pol, marker='o', cmap="coolwarm", vmin=-1, vmax=1)
                 ax.scatter(a, e, s=100, marker='o', edgecolor='black', facecolor='yellow')
                 ax.scatter(phi_t + np.pi, theta_t, s=200, marker='o', edgecolor='black', facecolor='yellowgreen')
                 ax.set_theta_zero_location("N")
@@ -198,6 +203,322 @@ def evaluate(n=60, omega=56,
 
                 ax.tick_params(axis='both', which='major', labelsize=16)
                 ax.tick_params(axis='both', which='minor', labelsize=16)
+
+                ax = plt.subplot(1, 4, 3, polar=True)
+                x = np.linspace(0, 2 * np.pi, 721)
+
+                # CBL
+                ax.fill_between(x, np.full_like(x, np.deg2rad(60)), np.full_like(x, np.deg2rad(90)),
+                                facecolor="C1", alpha=.5, label="CBL")
+                ax.scatter(phi_cl1[:nb_cl1/2] - np.pi/24, np.full(nb_cl1/2, np.deg2rad(75)), s=600,
+                           c=r_cl1[:nb_cl1/2], marker='o', edgecolor='red', cmap="coolwarm", vmin=-1, vmax=1)
+                ax.scatter(phi_cl1[nb_cl1/2:] + np.pi/24, np.full(nb_cl1/2, np.deg2rad(75)), s=600,
+                           c=r_cl1[nb_cl1/2:], marker='o', edgecolor='green', cmap="coolwarm", vmin=-1, vmax=1)
+
+                for ii, pp in enumerate(phi_cl1[:nb_cl1/2] - np.pi/24):
+                    ax.text(pp - np.pi/20, np.deg2rad(75), "%d" % (ii + 1), ha="center", va="center", size=10,
+                            bbox=dict(boxstyle="circle", fc="w", ec="k"))
+                for ii, pp in enumerate(phi_cl1[nb_cl1/2:] + np.pi/24):
+                    ax.text(pp + np.pi/20, np.deg2rad(75), "%d" % (ii + 9), ha="center", va="center", size=10,
+                            bbox=dict(boxstyle="circle", fc="w", ec="k"))
+                # TB1
+                ax.fill_between(x, np.full_like(x, np.deg2rad(30)), np.full_like(x, np.deg2rad(60)),
+                                facecolor="C2", alpha=.5, label="TB1")
+                ax.scatter(phi_tb1, np.full_like(phi_tb1, np.deg2rad(45)), s=600,
+                           c=r_tb1, marker='o', edgecolor='blue', cmap="coolwarm", vmin=-1, vmax=1)
+                for ii, pp in enumerate(phi_tb1):
+                    ax.text(pp, np.deg2rad(35), "%d" % (ii + 1), ha="center", va="center", size=10,
+                            bbox=dict(boxstyle="circle", fc="w", ec="k"))
+                    ax.arrow(pp, np.deg2rad(35), 0, np.deg2rad(10), fc='k', ec='k', head_width=.1, overhang=.3)
+
+                # Sun position
+                ax.scatter(a, e, s=500, marker='o', edgecolor='black', facecolor='yellow')
+
+                # Decoded TB1
+                # ax.plot([0, a_pred], [0, e_pred], 'k--', lw=1)
+                ax.plot([0, a_pred], [0, np.pi/2], 'k--', lw=1)
+                ax.arrow(a_pred, 0, 0, np.deg2rad(20),
+                         fc='k', ec='k', head_width=.3, head_length=.2, overhang=.3)
+
+                ax.legend(ncol=2, loc=(-.55, -.1), fontsize=16)
+                ax.set_theta_zero_location("N")
+                ax.set_theta_direction(-1)
+                ax.set_ylim([0, np.pi/2])
+                ax.set_yticks([])
+                ax.set_xticks([])
+                ax.set_title("Sensor Response", fontsize=16)
+
+                plt.subplots_adjust(left=.02, bottom=.12, right=.98, top=.88)
+
+                ax.tick_params(axis='both', which='major', labelsize=16)
+                ax.tick_params(axis='both', which='minor', labelsize=16)
+
+                plt.show()
+
+    d_deg = np.rad2deg(d)
+
+    if show_structure:
+        plt.figure("sensor-structure", figsize=(4.5, 4.5))
+        ax = plt.subplot(111, polar=True)
+        ax.scatter(phi, theta, s=150, c="black", marker='o')
+        ax.set_theta_zero_location("N")
+        ax.set_theta_direction(-1)
+        ax.set_ylim([0, np.deg2rad(50)])
+        ax.set_yticks([])
+        ax.set_xticks(np.linspace(-3 * np.pi / 4, 5 * np.pi / 4, 8, endpoint=False))
+        ax.set_title("POL Response")
+        plt.show()
+
+    return d_deg, d_eff, t, a_ret, tb1
+
+
+def evaluate(n=60, omega=56,
+             noise=0.,
+             nb_cl1=8, sigma_pol=np.deg2rad(13), shift_pol=np.deg2rad(40),
+             nb_tb1=8, sigma_sol=np.deg2rad(13), shift_sol=np.deg2rad(40),
+             use_default=False,
+             weighted=True,
+             fibonacci=False,
+             uniform_poliriser=False,
+
+             # single evaluation
+             sun_azi=None, sun_ele=None,
+
+             # data parameters
+             tilting=True, samples=1000, show_plots=False, show_structure=False, verbose=False):
+
+    # default parameters
+    tau_L = 2.
+    c1 = .6
+    c2 = 4.
+    AA, BB, CC, DD, EE = T_L.dot(np.array([tau_L, 1.]))  # sky parameters
+    T_T = np.linalg.pinv(T_L)
+    tau_L, c = T_T.dot(np.array([AA, BB, CC, DD, EE]))
+    tau_L /= c  # turbidity correction
+
+    # Prez. et. al. Luminance function
+    def L(cchi, zz):
+        ii = zz < (np.pi/2)
+        ff = np.zeros_like(zz)
+        if zz.ndim > 0:
+            ff[ii] = (1. + AA * np.exp(BB / (np.cos(zz[ii]) + eps)))
+        elif ii:
+            ff = (1. + AA * np.exp(BB / (np.cos(zz) + eps)))
+        pphi = (1. + CC * np.exp(DD * cchi) + EE * np.square(np.cos(cchi)))
+        return ff * pphi
+
+    if tilting:
+        angles = np.array([
+            [0., 0.],
+            [np.pi / 6, 0.], [np.pi / 6, np.pi / 4], [np.pi / 6, 2 * np.pi / 4], [np.pi / 6, 3 * np.pi / 4],
+            [np.pi / 6, 4 * np.pi / 4], [np.pi / 6, 5 * np.pi / 4], [np.pi / 6, 6 * np.pi / 4],
+            [np.pi / 6, 7 * np.pi / 4],
+            [np.pi / 3, 0.], [np.pi / 3, np.pi / 4], [np.pi / 3, 2 * np.pi / 4], [np.pi / 3, 3 * np.pi / 4],
+            [np.pi / 3, 4 * np.pi / 4], [np.pi / 3, 5 * np.pi / 4], [np.pi / 3, 6 * np.pi / 4],
+            [np.pi / 3, 7 * np.pi / 4]
+        ])  # 17
+        if samples == 1000:
+            samples /= 2
+    else:
+        angles = np.array([[0., 0.]])  # 1
+
+    # generate the different sun positions
+    if sun_azi is not None or sun_ele is not None:
+        theta_s = sun_ele if type(sun_ele) is np.ndarray else np.array([sun_ele])
+        phi_s = sun_azi if type(sun_azi) is np.ndarray else np.array([sun_azi])
+    else:
+        theta_s, phi_s = fibonacci_sphere(samples=samples, fov=161)
+        phi_s = phi_s[theta_s <= np.pi / 2]
+        theta_s = theta_s[theta_s <= np.pi / 2]
+    samples = theta_s.size
+
+    # generate the properties of the sensor
+    try:
+        theta, phi, fit = angles_distribution(n, float(omega))
+    except ValueError:
+        theta = np.empty(0, dtype=np.float32)
+        phi = np.empty(0, dtype=np.float32)
+        fit = False
+
+    if not fit or n > 100 or fibonacci:
+        theta, phi = fibonacci_sphere(n, float(omega))
+    # theta, phi, fit = angles_distribution(n, omega)
+    # if not fit:
+    #     print theta.shape, phi.shape
+    theta = (theta - np.pi) % (2 * np.pi) - np.pi
+    phi = (phi + np.pi) % (2 * np.pi) - np.pi
+    alpha = (phi + np.pi/2) % (2 * np.pi) - np.pi
+
+    # computational model parameters
+    phi_cl1 = np.linspace(0., 4 * np.pi, nb_cl1, endpoint=False)  # CL1 preference angles
+    phi_tb1 = np.linspace(0., 2 * np.pi, nb_tb1, endpoint=False)  # TB1 preference angles
+
+    # initialise lists for the statistical data
+    d = np.zeros((samples, angles.shape[0]), dtype=np.float32)
+    t = np.zeros_like(d)
+    d_eff = np.zeros((samples, angles.shape[0]), dtype=np.float32)
+    a_ret = np.zeros_like(t)
+    tb1 = np.zeros((samples, angles.shape[0], nb_tb1), dtype=np.float32)
+
+    # iterate through the different tilting angles
+    for j, (theta_t, phi_t) in enumerate(angles):
+        # transform relative coordinates
+        theta_s_, phi_s_ = tilt(theta_t, phi_t, theta=theta_s, phi=phi_s)
+        theta_, phi_ = tilt(theta_t, phi_t + np.pi, theta=theta, phi=phi)
+        _, alpha_ = tilt(theta_t, phi_t + np.pi, theta=np.pi / 2, phi=alpha)
+
+        for i, (e, a, e_org, a_org) in enumerate(zip(theta_s_, phi_s_, theta_s, phi_s)):
+
+            # SKY INTEGRATION
+            gamma = np.arccos(np.cos(theta_) * np.cos(e_org) + np.sin(theta_) * np.sin(e_org) * np.cos(phi_ - a_org))
+            # Intensity
+            I_prez, I_00, I_90 = L(gamma, theta_), L(0., e_org), L(np.pi / 2, np.absolute(e_org - np.pi / 2))
+            # influence of sky intensity
+            I = (1. / (I_prez + eps) - 1. / (I_00 + eps)) * I_00 * I_90 / (I_00 - I_90 + eps)
+            chi = (4. / 9. - tau_L / 120.) * (np.pi - 2 * e_org)
+            Y_z = (4.0453 * tau_L - 4.9710) * np.tan(chi) - 0.2155 * tau_L + 2.4192
+            if uniform_poliriser:
+                Y = np.maximum(np.full_like(I_prez, Y_z), 0.)
+            else:
+                Y = np.maximum(Y_z * I_prez / (I_00 + eps), 0.)  # Illumination
+
+            # Degree of Polarisation
+            M_p = np.exp(-(tau_L - c1) / (c2 + eps))
+            LP = np.square(np.sin(gamma)) / (1 + np.square(np.cos(gamma)))
+            if uniform_poliriser:
+                P = np.ones_like(LP)
+            else:
+                P = np.clip(2. / np.pi * M_p * LP * (theta_ * np.cos(theta_) + (np.pi/2 - theta_) * I), 0., 1.)
+
+            # Angle of polarisation
+            if uniform_poliriser:
+                A = np.full_like(P, a_org + np.pi)
+            else:
+                _, A = tilt(e_org, a_org + np.pi, theta_, phi_)
+
+            # create cloud disturbance
+            if noise > 0:
+                eta = np.cast(np.absolute(np.random.randn(*P.shape)) < noise, bool)
+                if verbose:
+                    print "Noise level: %.4f (%.2f %%)" % (noise, 100. * eta.sum() / float(eta.size))
+            else:
+                eta = np.zeros_like(theta, dtype=bool)
+            P[eta] = 0.  # destroy the polarisation pattern
+
+            # COMPUTATIONAL MODEL
+
+            # Input (POL) layer -- Photo-receptors
+            y = spectrum_influence(Y, spectrum["uv"])
+            s_1 = y * (np.square(np.sin(A - alpha_)) + np.square(np.cos(A - alpha_)) * np.square(1. - P))
+            s_2 = y * (np.square(np.cos(A - alpha_)) + np.square(np.sin(A - alpha_)) * np.square(1. - P))
+            r_1, r_2 = np.sqrt(s_1), np.sqrt(s_2)
+            # r_1, r_2 = np.log(s_1 + 1.), np.log(s_2 + 1.)
+            r_opo, r_sol = r_1 - r_2, r_1 + r_2
+            r_pol = r_opo / (r_sol + eps)
+            r_sol = 2. * r_sol / np.max(r_sol) - 1.
+
+            # Tilting (SOL) layer
+            d_pol = (np.sin(shift_pol - theta) * np.cos(theta_t) +
+                     np.cos(shift_pol - theta) * np.sin(theta_t) *
+                     np.cos(phi - phi_t))
+            gate_pol = np.power(np.exp(-np.square(d_pol) / (2. * np.square(sigma_pol))), 1)
+            z_pol = -float(nb_cl1) / float(n)
+            w_cl1_pol = z_pol * np.sin(phi_cl1[np.newaxis] - alpha[:, np.newaxis]) * gate_pol[:, np.newaxis]
+
+            d_sol = (np.sin(shift_sol - theta) * np.cos(theta_t) +
+                     np.cos(shift_sol - theta) * np.sin(theta_t) *
+                     np.cos(phi - phi_t))
+            gate_sol = np.power(np.exp(-np.square(d_sol) / (2. * np.square(sigma_sol))), 1)
+            z_sol = float(nb_cl1) / float(n)
+            w_cl1_sol = z_sol * np.sin(phi_cl1[np.newaxis] - alpha[:, np.newaxis]) * gate_sol[:, np.newaxis]
+
+            o = 1./64.
+            f_pol, f_sol = .5 * np.power(2*theta_t/np.pi, o), .5 * (1 - np.power(2*theta_t/np.pi, o))
+            r_cl1_pol = r_pol.dot(w_cl1_pol)
+            r_cl1_sol = r_sol.dot(w_cl1_sol)
+            r_cl1 = f_pol * r_cl1_pol + f_sol * r_cl1_sol
+
+            # Output (TB1) layer
+            w_tb1 = float(nb_tb1) / float(2 * nb_cl1) * np.cos(phi_tb1[np.newaxis] - phi_cl1[:, np.newaxis])
+
+            r_tb1 = r_cl1.dot(w_tb1)
+
+            if use_default:
+                w = -float(nb_tb1) / (2. * float(n)) * np.sin(
+                    phi_tb1[np.newaxis] - alpha[:, np.newaxis]) * gate_pol[:, np.newaxis]
+                r_tb1 = r_pol.dot(w)
+
+            # decode response - FFT
+            R = r_tb1.dot(np.exp(-np.arange(nb_tb1) * (0. + 1.j) * np.pi / (float(nb_tb1) / 2.)))
+            a_pred = (np.pi - np.arctan2(R.imag, R.real)) % (2. * np.pi) - np.pi  # sun azimuth (prediction)
+            tau_pred = np.absolute(R) - np.pi/2  # certainty of prediction
+
+            d[i, j] = np.absolute(azidist(np.array([e, a]), np.array([0., a_pred])))
+            t[i, j] = tau_pred if weighted else 1.
+            a_ret[i, j] = a_pred
+            tb1[i, j] = r_tb1
+
+            # effective degree of polarisation
+            M = r_cl1.max() - r_cl1.min()
+            # M = t[i, j] * 2.
+            p = np.power(10, M/2.)
+            d_eff[i, j] = np.mean((p - 1.) / (p + 1.))
+
+            if show_plots:
+                plt.figure("sensor-noise-%2d" % (100. * eta.sum() / float(eta.size)), figsize=(18, 4.5))
+
+                ax = plt.subplot(1, 12, 10)
+                plt.imshow(w_cl1_pol, cmap="coolwarm", vmin=-1, vmax=1)
+                plt.xlabel("CBL", fontsize=16)
+                plt.xticks([0, 15], ["1", "16"])
+                plt.yticks([0, 59], ["1", "60"])
+
+                ax.tick_params(axis='both', which='major', labelsize=16)
+                ax.tick_params(axis='both', which='minor', labelsize=16)
+
+                ax = plt.subplot(1, 6, 6)  # , sharey=ax)
+                plt.imshow(w_tb1, cmap="coolwarm", vmin=-1, vmax=1)
+                plt.xlabel("TB1", fontsize=16)
+                plt.xticks([0, 7], ["1", "8"])
+                plt.yticks([0, 15], ["1", "16"])
+                cbar = plt.colorbar(ticks=[-1, 0, 1])
+                cbar.ax.set_yticklabels([r'$\leq$ -1', r'0', r'$\geq$ 1'])
+
+                ax.tick_params(axis='both', which='major', labelsize=16)
+                ax.tick_params(axis='both', which='minor', labelsize=16)
+
+                ax = plt.subplot(1, 4, 1, polar=True)
+                ax.scatter(phi, theta, s=150, c=r_pol, marker='o', cmap="coolwarm", vmin=-1, vmax=1)
+                ax.scatter(a, e, s=100, marker='o', edgecolor='black', facecolor='yellow')
+                ax.scatter(phi_t + np.pi, theta_t, s=200, marker='o', edgecolor='black', facecolor='yellowgreen')
+                ax.set_theta_zero_location("N")
+                ax.set_theta_direction(-1)
+                ax.set_ylim([0, np.deg2rad(40)])
+                ax.set_yticks([])
+                ax.set_xticks(np.linspace(0, 2*np.pi, 8, endpoint=False))
+                ax.set_xticklabels([r'$0^\circ$', r'$45^\circ$', r'$90^\circ$', r'$135^\circ$',
+                                    r'$180^\circ$', r'$-135^\circ$', r'$-90^\circ$', r'$-45^\circ$'])
+                ax.set_title("POL Response", fontsize=16)
+
+                ax.tick_params(axis='both', which='major', labelsize=16)
+                ax.tick_params(axis='both', which='minor', labelsize=16)
+
+                ax = plt.subplot(1, 4, 2, polar=True)
+                ax.scatter(phi, theta, s=150, c=r_pol * gate_pol, marker='o', cmap="coolwarm", vmin=-1, vmax=1)
+                ax.scatter(a, e, s=100, marker='o', edgecolor='black', facecolor='yellow')
+                ax.scatter(phi_t + np.pi, theta_t, s=200, marker='o', edgecolor='black', facecolor='yellowgreen')
+                ax.set_theta_zero_location("N")
+                ax.set_theta_direction(-1)
+                ax.set_ylim([0, np.deg2rad(40)])
+                ax.set_yticks([])
+                ax.set_xticks(np.linspace(0, 2*np.pi, 8, endpoint=False))
+                ax.set_xticklabels([r'$0^\circ$', r'$45^\circ$', r'$90^\circ$', r'$135^\circ$',
+                                    r'$180^\circ$', r'$-135^\circ$', r'$-90^\circ$', r'$-45^\circ$'])
+                ax.set_title("Gated Response", fontsize=16)
+
+                ax.tick_params(axis='both', which='major', labelsize=16)
+                ax.tick_params(axis='both', which='minor', labelsize=16)
+
 
                 ax = plt.subplot(1, 4, 3, polar=True)
                 x = np.linspace(0, 2 * np.pi, 721)
@@ -430,19 +751,19 @@ def noise2disturbance_plot(n=60, samples=1000):
 def gate_test(save=None, mode=2, filename="gate-costs.npz", **kwargs):
     print "Running gating test:", kwargs
 
-    plt.figure("Gating", figsize=(5, 5))
+    plt.figure(filename[:-4], figsize=(5, 5))
     ax = plt.subplot(111, polar=True)
     ax.set_theta_zero_location("N")
     ax.set_theta_direction(-1)
 
-    sigmas = np.linspace(0, np.pi/2, 91)
-    shifts = np.linspace(0, 2*np.pi, 361)
+    sigmas = np.linspace(np.pi/90, np.pi/2, 45)
+    shifts = np.linspace(0, np.pi/2, 46)
 
     if mode < 2:
         means = np.zeros_like(sigmas)
         ses = np.zeros_like(sigmas)
         for ii, sigma in enumerate(sigmas):
-            d_err, d_eff, _, _, _ = evaluate(sigma=sigma, verbose=False, **kwargs)
+            d_err, d_eff, _, _, _ = evaluate(sigma_pol=sigma, verbose=False, **kwargs)
 
             means[ii] = d_err.mean()
             ses[ii] = d_err.std() / np.sqrt(d_err.size)
@@ -454,7 +775,7 @@ def gate_test(save=None, mode=2, filename="gate-costs.npz", **kwargs):
         means = np.zeros_like(shifts)
         ses = np.zeros_like(shifts)
         for ii, shift in enumerate(shifts):
-            d_err, d_eff, _, _, _ = evaluate(shift=shift, verbose=False, **kwargs)
+            d_err, d_eff, _, _, _ = evaluate(shift_pol=shift, verbose=False, **kwargs)
 
             means[ii] = d_err.mean()
             ses[ii] = d_err.std() / np.sqrt(d_err.size)
@@ -475,17 +796,21 @@ def gate_test(save=None, mode=2, filename="gate-costs.npz", **kwargs):
             data = np.load(filename)
             shifts, sigmas, means = data["shifts"], data["sigmas"], data["costs"]
         else:
-            sigmas, shifts = np.meshgrid(sigmas, shifts)
-            means = np.zeros(sigmas.size)
-            for ii, sigma, shift in zip(np.arange(sigmas.size), sigmas.flatten(), shifts.flatten()):
-                d_err, d_eff, tau, _, _ = evaluate(sigma=sigma, shift=shift, verbose=False, **kwargs)
+            sigmas_pol, shifts_pol, sigmas_sol, shifts_sol = np.meshgrid(sigmas, shifts, sigmas, shifts)
+            means = np.zeros(sigmas_pol.size)
+            for ii, sigma_pol, shift_pol, sigma_sol, shift_sol in zip(np.arange(sigmas_pol.size),
+                                                                      sigmas_pol.flatten(), shifts_pol.flatten(),
+                                                                      sigmas_sol.flatten(), shifts_sol.flatten()):
+                d_err, d_eff, tau, _, _ = evaluate(sigma_pol=sigma_pol, shift_pol=shift_pol,
+                                                   sigma_sol=sigma_sol, shift_sol=shift_sol, verbose=False, **kwargs)
                 means[ii] = d_err.mean()
                 se = np.rad2deg(d_err.std() / np.sqrt(d_err.size))
-                print 'Sigma = %.2f, Shift = %.2f | Mean cost: %.2f +/- %.4f' % (
-                    np.rad2deg(sigma), np.rad2deg(shift), means[ii], se)
+                print r'S_p = % 3.2f, T_p = % 3.2f, S_s = % 3.2f, T_s = % 3.2f | Mean cost: %.2f +/- %.4f' % (
+                    np.rad2deg(sigma_pol), np.rad2deg(shift_pol),
+                    np.rad2deg(sigma_sol), np.rad2deg(shift_sol), means[ii], se)
 
-            means = means.reshape(shifts.shape)
-            np.savez_compressed(filename, shifts=shifts, sigmas=sigmas, costs=means)
+            means = means.reshape(shifts_pol.shape)
+            np.savez_compressed(filename, shifts=shifts_pol, sigmas=sigmas_pol, costs=means)
 
         ii = np.argmin(means.flatten())
         sigma_min = sigmas.flatten()[ii]
@@ -499,7 +824,9 @@ def gate_test(save=None, mode=2, filename="gate-costs.npz", **kwargs):
             plt.scatter(shift_min, sigma_min, s=20, c='yellowgreen', marker='o')
             plt.yticks([0, np.pi/6, np.pi/3, np.pi/2],
                        [r"$0$", r"$30^\circ$", r"$60^\circ$", r"$90^\circ$"])
-            plt.xticks(np.linspace(-3*np.pi/4, 5*np.pi/4, 8, endpoint=False))
+            plt.xticks(np.linspace(0, 2*np.pi, 8, endpoint=False),
+                       [r'$0^\circ$', r'$45^\circ$', r'$90^\circ$', r'$135^\circ$',
+                        r'$180^\circ$', r'$-135^\circ$', r'$-90^\circ$', r'$-45^\circ$'])
             plt.ylim([0, np.pi/2])
             ax.grid(alpha=0.2)
 
@@ -839,7 +1166,7 @@ if __name__ == "__main__":
     # nb_neurons_test(mode=2, tilting=True, weighted=False, noise=.0)
     # gate_ring(sigma=np.deg2rad(26), shift=np.deg2rad(0))
     # noise2disturbance_plot()
-    # gate_test(tilting=True, mode=2, filename="gate-costs-po.npz")
+    # gate_test(tilting=True, mode=2, filename="gate-costs-both.npz")
     tilt_test(weighted=True, use_default=False)
     # structure_test(tilting=True, mode=1, n=60, omega=52, weighted=True)
     # for n_tb1 in xrange(8):
