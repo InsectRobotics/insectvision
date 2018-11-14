@@ -13,6 +13,9 @@ T_L = np.array([[ 0.1787, -1.4630],
 
 
 class Sky(Environment):
+    """
+    The Sky environment class. This environment class provides skylight cues.
+    """
 
     def __init__(self, theta_s=0., phi_s=0., theta_t=0., phi_t=0., name="sky"):
         """
