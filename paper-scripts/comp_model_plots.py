@@ -3,7 +3,7 @@ from sphere import azidist
 from sphere.transform import tilt
 from environment import Sky, eps, spectrum_influence, spectrum
 from environment.sky import T_L
-from compoundeye.model import POLCompassDRA
+from compoundeye import POLCompassDRA
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1166,8 +1166,8 @@ if __name__ == "__main__":
     # nb_neurons_test(mode=2, tilting=True, weighted=False, noise=.0)
     # gate_ring(sigma=np.deg2rad(26), shift=np.deg2rad(0))
     # noise2disturbance_plot()
-    # gate_test(tilting=True, mode=2, filename="gate-costs-both.npz")
-    tilt_test(weighted=True, use_default=False)
+    gate_test(tilting=True, mode=2, filename="gate-costs-both.npz")
+    # tilt_test(weighted=True, use_default=False)
     # structure_test(tilting=True, mode=1, n=60, omega=52, weighted=True)
     # for n_tb1 in xrange(8):
     #     heinze_experiment(n_tb1=n_tb1, absolute=False, uniform=True)
