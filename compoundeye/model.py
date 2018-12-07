@@ -54,6 +54,7 @@ class CompoundEye(object):
         self.__r = np.full((n), np.nan)
 
         self._is_called = False
+        self.name = name
 
     def __call__(self, env, *args, **kwargs):
         """
@@ -109,6 +110,10 @@ class CompoundEye(object):
     def r(self):
         assert self._is_called, "No light has passed through the sensors yet."
         return self._r
+
+    def __repr__(self):
+        return "%s(name=%s, n=%d, omega=%f, rho=%f)" % (
+            self.__class__.__name__, self.name, self.theta.size, np.max(self.theta) * 2, self.rho[0])
 
 
 class DRA(CompoundEye):
