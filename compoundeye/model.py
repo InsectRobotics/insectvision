@@ -73,8 +73,8 @@ class CompoundEye(object):
         y, p, a = env(self.theta, self.phi, *args, **kwargs)
 
         # influence of the acceptance angle on the luminance and DOP
-        y = y.dot(self._rho_gaussian)
-        p = p.dot(self._rho_gaussian)
+        # y = y.dot(self._rho_gaussian)
+        # p = p.dot(self._rho_gaussian)
 
         # influence of the wavelength on the perceived light
         ry = spectrum_influence(y, self.rhabdom)
@@ -185,19 +185,6 @@ def visualise(my_sky, y):
     plt.show()
 
 
-if __name__ == "__main__":
-    from environment import Sky
-
-    sky = Sky(theta_s=np.pi/3)
-    dra = POLCompassDRA()
-    dra.theta_t = np.pi/6
-    dra.phi_t = np.pi/3
-    # s = dra(sky)
-    r_pol = dra(sky)
-    r_po = dra.r_po
-    # print s.shape
-
-    visualise(sky, r_po)
 
 
 if __name__ == "__main_2__":

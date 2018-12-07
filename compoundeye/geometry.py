@@ -68,8 +68,9 @@ def angles_distribution(nb_lenses, fov):
         nb_slots_available = (thetas < theta).sum()
 
     if nb_slots_available > nb_lenses:
-        phis = phis[:nb_lenses-nb_slots_available]
-        thetas = thetas[:nb_lenses-nb_slots_available]
+        c = int(nb_lenses-nb_slots_available)
+        phis = phis[:c]
+        thetas = thetas[:c]
 
     while thetas.max() < theta:
         thetas *= 1.01
@@ -80,6 +81,7 @@ def angles_distribution(nb_lenses, fov):
 
 def fibonacci_sphere(samples, fov):
 
+    samples = int(samples)
     theta = np.deg2rad(fov / 2)  # angular distance of the outline from the zenith
     phi = (1. + np.sqrt(5)) * np.pi
 

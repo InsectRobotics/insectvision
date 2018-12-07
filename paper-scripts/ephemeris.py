@@ -1,5 +1,5 @@
-from sky import get_seville_observer
-from sky.utils import sun2lonlat
+from environment import get_seville_observer
+# from environment.utils import sun2lonlat
 from compoundeye.geometry import fibonacci_sphere
 from comp_model_plots import evaluate
 
@@ -10,9 +10,9 @@ import matplotlib.pyplot as plt
 
 
 if __name__ == "__main__":
-    # mode = "ephemeris"
+    mode = "ephemeris"
     # mode = "res2ele"
-    mode = "res2azi"
+    # mode = "res2azi"
 
     sun = Sun()
     obs = get_seville_observer()
@@ -81,7 +81,7 @@ if __name__ == "__main__":
             while cur <= end:
                 obs.date = cur
                 sun.compute(obs)
-                a, e = sun2lonlat(sun)
+                a, e = sun.az, np.pi/2 - sun.alt
                 if len(azi) > 0:
                     d = 60. / dt * np.absolute((a - azi[-1] + np.pi) % (2 * np.pi) - np.pi)
                     if d > np.pi/2:
@@ -91,8 +91,7 @@ if __name__ == "__main__":
                 else:
                     azi_diff.append(0.)
 
-                d_err, d_eff, tau = evaluate(sun_azi=a, sun_ele=e,
-                                             tilting=False, noise=0.)
+                d_err, d_eff, tau, _, _ = evaluate(sun_azi=a, sun_ele=e, tilting=False, noise=0.)
                 azi.append(a % (2 * np.pi))
                 ele.append(e)
                 res.append(tau.flatten())
@@ -176,7 +175,7 @@ if __name__ == "__main__":
             while cur <= end:
                 obs.date = cur
                 sun.compute(obs)
-                a, e = sun2lonlat(sun)
+                a, e = sun.az, np.pi/2 - sun.alt
                 if len(azi) > 0:
                     d = 60. / dt * np.absolute((a - azi[-1] + np.pi) % (2 * np.pi) - np.pi)
                     if d > np.pi/2:

@@ -7,8 +7,10 @@ from compoundeye import POLCompassDRA
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.io import loadmat
+from astropy.stats import circmean, circvar, rayleightest
 
-tb1_names = ['L5/R4', 'L6/R3', 'L7/R2', 'L8/R1', 'L1/R8', 'L2/R7', 'L3/R6', 'L4/R5']
+tb1_names = ['L8/R1', 'L7/R2', 'L6/R3', 'L5/R4', 'L4/R5', 'L3/R6', 'L2/R7', 'L1/R8']
 
 
 def evaluate_slow(n=60, omega=56,
@@ -279,13 +281,14 @@ def evaluate(n=60, omega=56,
              use_default=False,
              weighted=True,
              fibonacci=False,
-             uniform_poliriser=False,
+             uniform_polariser=False,
 
              # single evaluation
              sun_azi=None, sun_ele=None,
 
              # data parameters
-             tilting=True, samples=1000, show_plots=False, show_structure=False, verbose=False):
+             tilting=True, ephemeris=False,
+             samples=1000, show_plots=False, show_structure=False, verbose=False):
 
     # default parameters
     tau_L = 2.
@@ -307,7 +310,9 @@ def evaluate(n=60, omega=56,
         pphi = (1. + CC * np.exp(DD * cchi) + EE * np.square(np.cos(cchi)))
         return ff * pphi
 
-    if tilting:
+    if tilting is not None and type(tilting) is tuple:
+        angles = np.array([tilting])  # 1
+    elif tilting:
         angles = np.array([
             [0., 0.],
             [np.pi / 6, 0.], [np.pi / 6, np.pi / 4], [np.pi / 6, 2 * np.pi / 4], [np.pi / 6, 3 * np.pi / 4],
@@ -350,7 +355,7 @@ def evaluate(n=60, omega=56,
     alpha = (phi + np.pi/2) % (2 * np.pi) - np.pi
 
     # computational model parameters
-    phi_cl1 = np.linspace(0., 4 * np.pi, nb_cl1, endpoint=False)  # CL1 preference angles
+    phi_cl1 = np.linspace(0., 2 * np.pi, nb_cl1, endpoint=False)  # CL1 preference angles
     phi_tb1 = np.linspace(0., 2 * np.pi, nb_tb1, endpoint=False)  # TB1 preference angles
 
     # initialise lists for the statistical data
@@ -377,7 +382,7 @@ def evaluate(n=60, omega=56,
             I = (1. / (I_prez + eps) - 1. / (I_00 + eps)) * I_00 * I_90 / (I_00 - I_90 + eps)
             chi = (4. / 9. - tau_L / 120.) * (np.pi - 2 * e_org)
             Y_z = (4.0453 * tau_L - 4.9710) * np.tan(chi) - 0.2155 * tau_L + 2.4192
-            if uniform_poliriser:
+            if uniform_polariser:
                 Y = np.maximum(np.full_like(I_prez, Y_z), 0.)
             else:
                 Y = np.maximum(Y_z * I_prez / (I_00 + eps), 0.)  # Illumination
@@ -385,20 +390,28 @@ def evaluate(n=60, omega=56,
             # Degree of Polarisation
             M_p = np.exp(-(tau_L - c1) / (c2 + eps))
             LP = np.square(np.sin(gamma)) / (1 + np.square(np.cos(gamma)))
-            if uniform_poliriser:
+            if uniform_polariser:
                 P = np.ones_like(LP)
             else:
                 P = np.clip(2. / np.pi * M_p * LP * (theta_ * np.cos(theta_) + (np.pi/2 - theta_) * I), 0., 1.)
 
             # Angle of polarisation
-            if uniform_poliriser:
+            if uniform_polariser:
                 A = np.full_like(P, a_org + np.pi)
             else:
                 _, A = tilt(e_org, a_org + np.pi, theta_, phi_)
 
             # create cloud disturbance
-            if noise > 0:
-                eta = np.cast(np.absolute(np.random.randn(*P.shape)) < noise, bool)
+            if type(noise) is np.ndarray:
+                if noise.size == P.size:
+                    # print "yeah!"
+                    eta = np.array(noise, dtype=bool)
+                else:
+                    eta = np.zeros_like(theta, dtype=bool)
+                    eta[:noise.size] = noise
+            elif noise > 0:
+                eta = np.argsort(np.absolute(np.random.randn(*P.shape)))[:int(noise * P.shape[0])]
+                # eta = np.array(np.absolute(np.random.randn(*P.shape)) < noise, dtype=bool)
                 if verbose:
                     print "Noise level: %.4f (%.2f %%)" % (noise, 100. * eta.sum() / float(eta.size))
             else:
@@ -433,14 +446,17 @@ def evaluate(n=60, omega=56,
             w_cl1_sol = z_sol * np.sin(phi_cl1[np.newaxis] - alpha[:, np.newaxis]) * gate_sol[:, np.newaxis]
 
             o = 1./64.
-            f_pol, f_sol = .5 * np.power(2*theta_t/np.pi, o), .5 * (1 - np.power(2*theta_t/np.pi, o))
             r_cl1_pol = r_pol.dot(w_cl1_pol)
-            r_cl1_sol = r_sol.dot(w_cl1_sol)
-            r_cl1 = f_pol * r_cl1_pol + f_sol * r_cl1_sol
+            # r_cl1_sol = r_sol.dot(w_cl1_sol)
+            # f_pol, f_sol = .5 * np.power(2*theta_t/np.pi, o), .5 * (1 - np.power(2*theta_t/np.pi, o))
+            # r_cl1 = f_pol * r_cl1_pol + f_sol * r_cl1_sol
+            r_cl1 = r_cl1_pol
 
             # Output (TB1) layer
-            w_tb1 = float(nb_tb1) / float(2 * nb_cl1) * np.cos(phi_tb1[np.newaxis] - phi_cl1[:, np.newaxis])
+            eph = (a - np.pi/3) if ephemeris else 0.
+            w_tb1 = float(nb_tb1) / float(2 * nb_cl1) * np.cos(phi_tb1[np.newaxis] - phi_cl1[:, np.newaxis] + eph)
 
+            # r_tb1 = r_cl1.dot(w_tb1)
             r_tb1 = r_cl1.dot(w_tb1)
 
             if use_default:
@@ -451,7 +467,7 @@ def evaluate(n=60, omega=56,
             # decode response - FFT
             R = r_tb1.dot(np.exp(-np.arange(nb_tb1) * (0. + 1.j) * np.pi / (float(nb_tb1) / 2.)))
             a_pred = (np.pi - np.arctan2(R.imag, R.real)) % (2. * np.pi) - np.pi  # sun azimuth (prediction)
-            tau_pred = np.absolute(R) - np.pi/2  # certainty of prediction
+            tau_pred = np.absolute(R)  # - np.pi/2  # certainty of prediction
 
             d[i, j] = np.absolute(azidist(np.array([e, a]), np.array([0., a_pred])))
             t[i, j] = tau_pred if weighted else 1.
@@ -465,90 +481,68 @@ def evaluate(n=60, omega=56,
             d_eff[i, j] = np.mean((p - 1.) / (p + 1.))
 
             if show_plots:
-                plt.figure("sensor-noise-%2d" % (100. * eta.sum() / float(eta.size)), figsize=(18, 4.5))
-
-                ax = plt.subplot(1, 12, 10)
-                plt.imshow(w_cl1_pol, cmap="coolwarm", vmin=-1, vmax=1)
-                plt.xlabel("CBL", fontsize=16)
-                plt.xticks([0, 15], ["1", "16"])
-                plt.yticks([0, 59], ["1", "60"])
-
-                ax.tick_params(axis='both', which='major', labelsize=16)
-                ax.tick_params(axis='both', which='minor', labelsize=16)
-
-                ax = plt.subplot(1, 6, 6)  # , sharey=ax)
-                plt.imshow(w_tb1, cmap="coolwarm", vmin=-1, vmax=1)
-                plt.xlabel("TB1", fontsize=16)
-                plt.xticks([0, 7], ["1", "8"])
-                plt.yticks([0, 15], ["1", "16"])
-                cbar = plt.colorbar(ticks=[-1, 0, 1])
-                cbar.ax.set_yticklabels([r'$\leq$ -1', r'0', r'$\geq$ 1'])
-
-                ax.tick_params(axis='both', which='major', labelsize=16)
-                ax.tick_params(axis='both', which='minor', labelsize=16)
-
-                ax = plt.subplot(1, 4, 1, polar=True)
-                ax.scatter(phi, theta, s=150, c=r_pol, marker='o', cmap="coolwarm", vmin=-1, vmax=1)
-                ax.scatter(a, e, s=100, marker='o', edgecolor='black', facecolor='yellow')
-                ax.scatter(phi_t + np.pi, theta_t, s=200, marker='o', edgecolor='black', facecolor='yellowgreen')
-                ax.set_theta_zero_location("N")
-                ax.set_theta_direction(-1)
-                ax.set_ylim([0, np.deg2rad(40)])
-                ax.set_yticks([])
-                ax.set_xticks(np.linspace(0, 2*np.pi, 8, endpoint=False))
-                ax.set_xticklabels([r'$0^\circ$', r'$45^\circ$', r'$90^\circ$', r'$135^\circ$',
-                                    r'$180^\circ$', r'$-135^\circ$', r'$-90^\circ$', r'$-45^\circ$'])
-                ax.set_title("POL Response", fontsize=16)
-
-                ax.tick_params(axis='both', which='major', labelsize=16)
-                ax.tick_params(axis='both', which='minor', labelsize=16)
-
-                ax = plt.subplot(1, 4, 2, polar=True)
-                ax.scatter(phi, theta, s=150, c=r_pol * gate_pol, marker='o', cmap="coolwarm", vmin=-1, vmax=1)
-                ax.scatter(a, e, s=100, marker='o', edgecolor='black', facecolor='yellow')
-                ax.scatter(phi_t + np.pi, theta_t, s=200, marker='o', edgecolor='black', facecolor='yellowgreen')
-                ax.set_theta_zero_location("N")
-                ax.set_theta_direction(-1)
-                ax.set_ylim([0, np.deg2rad(40)])
-                ax.set_yticks([])
-                ax.set_xticks(np.linspace(0, 2*np.pi, 8, endpoint=False))
-                ax.set_xticklabels([r'$0^\circ$', r'$45^\circ$', r'$90^\circ$', r'$135^\circ$',
-                                    r'$180^\circ$', r'$-135^\circ$', r'$-90^\circ$', r'$-45^\circ$'])
-                ax.set_title("Gated Response", fontsize=16)
-
-                ax.tick_params(axis='both', which='major', labelsize=16)
-                ax.tick_params(axis='both', which='minor', labelsize=16)
-
-
-                ax = plt.subplot(1, 4, 3, polar=True)
+                plt.figure("sensor-noise-%2d" % (100. * eta.sum() / float(eta.size)), figsize=(4.5, 9))
                 x = np.linspace(0, 2 * np.pi, 721)
 
-                # CBL
-                ax.fill_between(x, np.full_like(x, np.deg2rad(60)), np.full_like(x, np.deg2rad(90)),
-                                facecolor="C1", alpha=.5, label="CBL")
-                ax.scatter(phi_cl1[:nb_cl1/2] - np.pi/24, np.full(nb_cl1/2, np.deg2rad(75)), s=600,
-                           c=r_cl1[:nb_cl1/2], marker='o', edgecolor='red', cmap="coolwarm", vmin=-1, vmax=1)
-                ax.scatter(phi_cl1[nb_cl1/2:] + np.pi/24, np.full(nb_cl1/2, np.deg2rad(75)), s=600,
-                           c=r_cl1[nb_cl1/2:], marker='o', edgecolor='green', cmap="coolwarm", vmin=-1, vmax=1)
+                ax = plt.subplot(6, 1, 4)
+                plt.imshow(5 * w_cl1_pol.T, cmap="coolwarm", vmin=-1, vmax=1)
+                plt.yticks([0, 7], ["1", "8"])
+                plt.xticks([0, 59], ["1", "60"])
 
-                for ii, pp in enumerate(phi_cl1[:nb_cl1/2] - np.pi/24):
-                    ax.text(pp - np.pi/20, np.deg2rad(75), "%d" % (ii + 1), ha="center", va="center", size=10,
+                ax.tick_params(axis='both', which='major', labelsize=16)
+                ax.tick_params(axis='both', which='minor', labelsize=16)
+
+                ax = plt.subplot(12, 1, 9)  # , sharey=ax)
+                plt.imshow(w_tb1.T, cmap="coolwarm", vmin=-1, vmax=1)
+                plt.xticks([0, 7], ["1", "8"])
+                plt.yticks([0, 7], ["1", "8"])
+                # cbar = plt.colorbar(ticks=[-1, 0, 1], orientation='vertical')
+                # cbar.ax.set_yticklabels([r'$\leq$ -1', r'0', r'$\geq$ 1'])
+
+                ax.tick_params(axis='both', which='major', labelsize=16)
+                ax.tick_params(axis='both', which='minor', labelsize=16)
+
+                ax = plt.subplot(2, 1, 1, polar=True)
+                ax.set_theta_zero_location("N")
+                ax.set_theta_direction(-1)
+                ax.grid(False)
+
+                # POL
+                ax.scatter(phi, theta, s=90, c=r_pol, marker='o', edgecolor='black', cmap="coolwarm", vmin=-1, vmax=1)
+
+                # SOL
+                y = np.deg2rad(37.5)
+                sy = np.deg2rad(15)
+                ax.fill_between(x, np.full_like(x, y - sy/2), np.full_like(x, y + sy/2),
+                                facecolor="C1", alpha=.5, label="SOL")
+                ax.scatter(phi_cl1, np.full(nb_cl1, np.deg2rad(37.5)), s=600,
+                           c=r_cl1, marker='o', edgecolor='red', cmap="coolwarm", vmin=-1, vmax=1)
+
+                for ii, pp in enumerate(phi_cl1):
+                    ax.text(pp - np.pi/13, y, "%d" % (ii + 1), ha="center", va="center", size=10,
                             bbox=dict(boxstyle="circle", fc="w", ec="k"))
-                for ii, pp in enumerate(phi_cl1[nb_cl1/2:] + np.pi/24):
-                    ax.text(pp + np.pi/20, np.deg2rad(75), "%d" % (ii + 9), ha="center", va="center", size=10,
-                            bbox=dict(boxstyle="circle", fc="w", ec="k"))
-                # TB1
-                ax.fill_between(x, np.full_like(x, np.deg2rad(30)), np.full_like(x, np.deg2rad(60)),
-                                facecolor="C2", alpha=.5, label="TB1")
-                ax.scatter(phi_tb1, np.full_like(phi_tb1, np.deg2rad(45)), s=600,
-                           c=r_tb1, marker='o', edgecolor='blue', cmap="coolwarm", vmin=-1, vmax=1)
+                    ax.arrow(pp, np.deg2rad(33), 0, np.deg2rad(4), fc='k', ec='k',
+                             head_width=.1, head_length=.1, overhang=.3)
+
+                # TCL
+                y = np.deg2rad(52.5)
+                sy = np.deg2rad(15)
+                ax.fill_between(x, np.full_like(x, y - sy/2), np.full_like(x, y + sy/2),
+                                facecolor="C2", alpha=.5, label="TCL")
+                ax.scatter(phi_tb1, np.full_like(phi_tb1, y), s=600,
+                           c=r_tb1, marker='o', edgecolor='green', cmap="coolwarm", vmin=-1, vmax=1)
                 for ii, pp in enumerate(phi_tb1):
-                    ax.text(pp, np.deg2rad(35), "%d" % (ii + 1), ha="center", va="center", size=10,
+                    ax.text(pp + np.pi/18, y, "%d" % (ii + 1), ha="center", va="center", size=10,
                             bbox=dict(boxstyle="circle", fc="w", ec="k"))
-                    ax.arrow(pp, np.deg2rad(35), 0, np.deg2rad(10), fc='k', ec='k', head_width=.1, overhang=.3)
+                    pref = a if ephemeris else 0.
+                    print "Sun:", np.rad2deg(pref)
+                    dx, dy = np.deg2rad(4) * np.sin(0.), np.deg2rad(4) * np.cos(0.)
+                    ax.arrow(pp - dx, y - dy/2 - np.deg2rad(2.5), dx, dy, fc='k', ec='k',
+                             head_width=.07, head_length=.1, overhang=.3)
 
                 # Sun position
                 ax.scatter(a, e, s=500, marker='o', edgecolor='black', facecolor='yellow')
+                ax.scatter(phi_t, theta_t, s=200, marker='o', edgecolor='black', facecolor='yellowgreen')
 
                 # Decoded TB1
                 # ax.plot([0, a_pred], [0, e_pred], 'k--', lw=1)
@@ -556,18 +550,16 @@ def evaluate(n=60, omega=56,
                 ax.arrow(a_pred, 0, 0, np.deg2rad(20),
                          fc='k', ec='k', head_width=.3, head_length=.2, overhang=.3)
 
-                ax.legend(ncol=2, loc=(-.55, -.1), fontsize=16)
-                ax.set_theta_zero_location("N")
-                ax.set_theta_direction(-1)
-                ax.set_ylim([0, np.pi/2])
+                ax.legend(ncol=2, loc=(.15, -1.), fontsize=16)
+
+                ax.set_ylim([0, np.deg2rad(60)])
                 ax.set_yticks([])
-                ax.set_xticks([])
-                ax.set_title("Sensor Response", fontsize=16)
-
-                plt.subplots_adjust(left=.02, bottom=.12, right=.98, top=.88)
-
+                ax.set_xticks(np.linspace(0, 2*np.pi, 4, endpoint=False))
+                ax.set_xticklabels([r'N', r'E', r'S', r'W'])
                 ax.tick_params(axis='both', which='major', labelsize=16)
                 ax.tick_params(axis='both', which='minor', labelsize=16)
+
+                plt.subplots_adjust(left=.07, bottom=.0, right=.93, top=.96)
 
                 plt.show()
 
@@ -596,7 +588,7 @@ def nb_neurons_test(save=None, mode=0, **kwargs):
     nb_tb1s = np.linspace(4, 360, 90)
     nb_cl1s = np.linspace(4, 360, 90)
 
-    filename = "nb-neurons-costs.npz"
+    filename = "structure-costs.npz"
     if mode < 2:
         plt.subplot(121)
         means = np.zeros_like(nb_tb1s)
@@ -604,7 +596,7 @@ def nb_neurons_test(save=None, mode=0, **kwargs):
         nb_tb1_default = kwargs.pop('nb_tb1', 8)
         nb_cl1_default = kwargs.pop('nb_cl1', 16)
         for ii, nb_tb1 in enumerate(nb_tb1s):
-            d_err, d_eff, tau = evaluate(nb_tb1=nb_tb1, nb_cl1=nb_cl1_default, verbose=False, **kwargs)
+            d_err, d_eff, tau, _, _ = evaluate(nb_tb1=nb_tb1, nb_cl1=nb_cl1_default, verbose=False, **kwargs)
             means[ii] = (d_err * tau / tau.sum()).sum()
             ses[ii] = d_err.std() / np.sqrt(d_err.size)
             print 'TB1 = %03d, CL1 = %03d | Mean cost: %.2f +/- %.4f' % (nb_tb1, nb_cl1_default, means[ii], ses[ii])
@@ -624,7 +616,7 @@ def nb_neurons_test(save=None, mode=0, **kwargs):
         means = np.zeros_like(nb_cl1s)
         ses = np.zeros_like(nb_cl1s)
         for ii, nb_cl1 in enumerate(nb_cl1s):
-            d_err, d_eff, tau = evaluate(nb_tb1=nb_tb1_default, nb_cl1=nb_cl1, verbose=False, **kwargs)
+            d_err, d_eff, tau, _, _ = evaluate(nb_tb1=nb_tb1_default, nb_cl1=nb_cl1, verbose=False, **kwargs)
             means[ii] = (d_err * tau / tau.sum()).sum()
             ses[ii] = d_err.std() / np.sqrt(d_err.size)
             print 'TB1 = %03d, CL1 = %03d | Mean cost: %.2f +/- %.4f' % (nb_tb1_default, nb_cl1, means[ii], ses[ii])
@@ -652,7 +644,7 @@ def nb_neurons_test(save=None, mode=0, **kwargs):
             nb_tb1s, nb_cl1s = np.meshgrid(nb_tb1s, nb_cl1s)
             means = np.zeros(nb_cl1s.size)
             for ii, nb_tb1, nb_cl1 in zip(np.arange(nb_cl1s.size), nb_tb1s.flatten(), nb_cl1s.flatten()):
-                d_err, d_eff, tau = evaluate(nb_tb1=nb_tb1, nb_cl1=nb_cl1, verbose=False, **kwargs)
+                d_err, d_eff, tau, _, _ = evaluate(nb_tb1=nb_tb1, nb_cl1=nb_cl1, verbose=False, **kwargs)
                 means[ii] = (d_err * tau / tau.sum()).sum()
                 se = d_err.std() / np.sqrt(d_err.size)
                 print 'TB1 = %03d, CL1 = %03d | Mean cost: %.2f +/- %.4f' % (nb_tb1, nb_cl1, means[ii], se)
@@ -682,41 +674,86 @@ def nb_neurons_test(save=None, mode=0, **kwargs):
     plt.show()
 
 
-def noise_test(save=None, **kwargs):
+def noise_test(save=None, mode=0, repeats=10, **kwargs):
+    from sphere.transform import sph2vec
+
     print "Running noise test:", kwargs
+    modes = ['normal', 'corridor', 'side']
+    print "Mode:", modes[mode]
 
-    plt.figure("Noise", figsize=(5, 5))
-
-    etas = np.linspace(0, 2, 21)
+    plt.figure("noise-%s" % modes[mode], figsize=(5, 5))
+    n, omega = 60, 56
+    etas = np.linspace(0, 1, 21)
+    taus = np.zeros_like(etas)
     means = np.zeros_like(etas)
     ses = np.zeros_like(etas)
-    for ii, eta in enumerate(etas):
-        d_err, d_eff, tau = evaluate(
-            noise=eta, verbose=False, tilting=True, **kwargs
-        )
-        means[ii] = (d_err * tau / tau.sum()).sum()
-        ses[ii] = d_err.std() / np.sqrt(d_err.size)
-        print "Noise level: %.2f | Mean cost: %.2f +/- %.4f" % (eta, means[ii], ses[ii])
+    for i in xrange(10):
+        noise = np.ones(n, int)
+        if mode > 0:
+            theta, phi, fit = angles_distribution(n, float(omega))
+            x, _, _ = sph2vec(theta, phi)
+        else:
+            x = np.argsort(np.absolute(np.random.randn(n)))
+        for ii, eta in enumerate(etas):
+            if mode == 0:
+                noise[:] = 0
+                noise[x[:int(eta * float(n))]] = 1
+            else:
+                noise[:] = 0
+                if mode > 1:
+                    noise[x > (1 - 2 * eta)] = 1
+                else:
+                    noise[np.abs(x) > (1 - eta)] = 1
+            d_err, d_eff, tau, _, _ = evaluate(
+                n=n, omega=omega, noise=noise, verbose=False, tilting=True, **kwargs
+            )
+            means[ii] = (means[ii] * i + d_err.mean()) / (i + 1)
+            ses[ii] = (ses[ii] * i + d_err.std() / np.sqrt(d_err.size)) / (i + 1)
+            taus[ii] = (taus[ii] * i + tau.mean()) / (i + 1)
 
-    plt.fill_between(etas, means-ses, means+ses, facecolor="grey")
-    plt.plot(etas, means, color="black", label="tilting")
+            print "Noise level: %.2f (%03d) | Mean cost: %.2f +/- %.4f" % (eta, np.sum(noise), means[ii], ses[ii])
 
-    for ii, eta in enumerate(etas):
-        d_err, d_eff, tau = evaluate(
-            noise=eta, verbose=False, tilting=False, **kwargs
-        )
-        means[ii] = (d_err * tau / tau.sum()).sum()
-        ses[ii] = d_err.std() / np.sqrt(d_err.size)
-        print "Noise level: %.2f | Mean cost: %.2f +/- %.4f" % (eta, means[ii], ses[ii])
+    plt.fill_between(etas * 100, means-ses, means+ses, facecolor="grey")
+    plt.plot(etas * 100, means, color="red", linestyle="-", label="tilting")
+    plt.plot(etas * 100, taus * 45, color="red", linestyle="--", label="tau-tilting")
 
-    plt.fill_between(etas, means-ses, means+ses, facecolor="grey", alpha=.5)
-    plt.plot(etas, means, color="black", linestyle="--", label="plane")
+    taus = np.zeros_like(etas)
+    means = np.zeros_like(etas)
+    ses = np.zeros_like(etas)
+    for i in xrange(repeats):
+        noise = np.ones(n, int)
+        if mode > 0:
+            theta, phi, fit = angles_distribution(n, float(omega))
+            x, _, _ = sph2vec(theta, phi)
+        else:
+            x = np.argsort(np.absolute(np.random.randn(n)))
+        for ii, eta in enumerate(etas):
+            if mode == 0:
+                noise[:] = 0
+                noise[x[:int(eta * float(n))]] = 1
+            else:
+                noise[:] = 0
+                if mode > 1:
+                    noise[x > (1 - 2 * eta)] = 1
+                else:
+                    noise[np.abs(x) > (1 - eta)] = 1
+            d_err, d_eff, tau, _, _ = evaluate(
+                n=n, omega=omega, noise=noise, verbose=False, tilting=False, **kwargs
+            )
+            means[ii] = (means[ii] * i + d_err.mean()) / (i + 1)
+            ses[ii] = (ses[ii] * i + d_err.std() / np.sqrt(d_err.size)) / (i + 1)
+            taus[ii] = (taus[ii] * i + tau.mean()) / (i + 1)
+            print "Noise level: %.2f (%03d) | Mean cost: %.2f +/- %.4f" % (eta, np.sum(noise), means[ii], ses[ii])
 
-    plt.ylim([0, 60])
-    plt.yticks([0, 15, 30, 45, 60], [r'%d$^\circ$' % o for o in [0, 15, 30, 45, 60]])
-    plt.xlim([0, 2])
+    plt.fill_between(etas * 100, means-ses, means+ses, facecolor="grey", alpha=.5)
+    plt.plot(etas * 100, means, color="black", linestyle="-", label="plane")
+    plt.plot(etas * 100, taus * 45, color="black", linestyle="--", label="tau-plane")
+
+    plt.ylim([0, 90])
+    plt.yticks([0, 30, 60, 90], [r'%d$^\circ$' % o for o in [0, 30, 60, 90]])
+    plt.xlim([0, 100])
     plt.xlabel(r'noise ($\eta$)')
-    plt.ylabel("MSE ($^\circ$)")
+    plt.ylabel("MAE ($^\circ$)")
     # plt.legend()
 
     if save:
@@ -734,6 +771,7 @@ def noise2disturbance_plot(n=60, samples=1000):
         for _ in xrange(samples):
             noise_lvl[ii] += np.sum(np.absolute(np.random.randn(n)) < eta) / z
         noise_lvl[ii] /= float(samples)
+        print "Noise: %.2f -- %2.2f" % (eta, noise_lvl[ii])
 
     plt.figure("noise2level", figsize=(5, 2))
     plt.plot(etas, noise_lvl, color="black")
@@ -796,6 +834,7 @@ def gate_test(save=None, mode=2, filename="gate-costs.npz", **kwargs):
             data = np.load(filename)
             shifts, sigmas, means = data["shifts"], data["sigmas"], data["costs"]
         else:
+            # TODO parametrise this to work in batches so that I can run it in multiple processors
             sigmas_pol, shifts_pol, sigmas_sol, shifts_sol = np.meshgrid(sigmas, shifts, sigmas, shifts)
             means = np.zeros(sigmas_pol.size)
             for ii, sigma_pol, shift_pol, sigma_sol, shift_sol in zip(np.arange(sigmas_pol.size),
@@ -852,11 +891,11 @@ def structure_test(save=None, mode=0, **kwargs):
         plt.subplot(121)
         means = np.zeros_like(ns)
         ses = np.zeros_like(ns)
-        n_default = kwargs.pop('n', 60)
+        n_default = kwargs.pop('n', 360)
         omega_default = kwargs.pop('omega', 56)
         for ii, n in enumerate(ns.astype(int)):
-            d_err, d_eff, tau = evaluate(n=n, omega=omega_default, verbose=False, **kwargs)
-            means[ii] = (d_err * tau / tau.sum()).sum()
+            d_err, d_eff, tau, _, _ = evaluate(n=n, omega=omega_default, verbose=False, **kwargs)
+            means[ii] = np.mean(d_err)
             ses[ii] = d_err.std() / np.sqrt(d_err.size)
             print 'N = % 3d, Omega = %.2f | Mean cost: %.2f +/- %.4f' % (n, omega_default, means[ii], ses[ii])
 
@@ -875,8 +914,8 @@ def structure_test(save=None, mode=0, **kwargs):
         means = np.zeros_like(omegas)
         ses = np.zeros_like(omegas)
         for ii, omega in enumerate(omegas):
-            d_err, d_eff, tau = evaluate(n=n_default, omega=omega, verbose=False, **kwargs)
-            means[ii] = (d_err * tau / tau.sum()).sum()
+            d_err, d_eff, tau, _, _ = evaluate(n=n_default, omega=omega, verbose=False, **kwargs)
+            means[ii] = np.mean(d_err)
             ses[ii] = d_err.std() / np.sqrt(d_err.size)
             print 'N = % 3d, Omega = %.2f | Mean cost: %.2f +/- %.4f' % (n_default, omega, means[ii], ses[ii])
 
@@ -904,8 +943,10 @@ def structure_test(save=None, mode=0, **kwargs):
             ns, omegas = np.meshgrid(ns, omegas)
             means = np.zeros(omegas.size)
             for ii, omega, n in zip(np.arange(omegas.size), omegas.flatten(), ns.flatten()):
-                d_err, d_eff, tau = evaluate(n=n, omega=omega, verbose=False, **kwargs)
-                means[ii] = (d_err * tau / tau.sum()).sum()
+                kwargs["n"] = n
+                kwargs["omega"] = omega
+                d_err, d_eff, tau, _, _ = evaluate(verbose=False, **kwargs)
+                means[ii] = np.mean(d_err)
                 se = d_err.std() / np.sqrt(d_err.size)
                 print 'N = % 3d, Omega = %.2f | Mean cost: %.2f +/- %.4f' % (n, omega, means[ii], se)
 
@@ -913,10 +954,14 @@ def structure_test(save=None, mode=0, **kwargs):
             np.savez_compressed(filename, omegas=omegas, ns=ns, costs=means)
 
         ii = np.nanargmin(means, axis=0)
+        jj = np.nanargmin(means[ii, np.arange(91)])
         omega_min = omegas[ii, np.arange(91)]
         n_min = ns[ii, np.arange(91)]
         means_min = means[ii, np.arange(91)]
-        print 'Minimum cost (%.2f) for N = %d, Omega = %.2f' % (means_min[15], n_min[15], omega_min[30])
+        print means_min
+        print n_min
+        print omega_min
+        print 'Minimum cost (%.2f) for N = %d, Omega = %.2f' % (means_min[jj], n_min[jj], omega_min[jj])
         print 'Mean omega %.2f +/- %.4f' % (omega_min.mean(), omega_min.std() / np.sqrt(omega_min.size))
 
         with plt.rc_context({'ytick.color': 'white'}):
@@ -1025,24 +1070,44 @@ def heinze_experiment(n_tb1=0, eta=.0, absolute=False, uniform=False):
                                                sun_azi=sun_azi, sun_ele=sun_ele, tilting=False, noise=eta)
         tb1s = np.vstack([tb1s, np.transpose(r_tb1, axes=(1, 0, 2))])
 
+    if absolute:
+        tb1s = np.absolute(tb1s)
+    bl = .5
+    r_mean = np.median(tb1s[..., n_tb1], axis=0)
+    z = r_mean.max() - r_mean.min()
+
+    r_mean = (r_mean - r_mean.min()) / z - bl
+    r_std = tb1s[..., n_tb1].std(axis=0) / np.sqrt(z)
+
+    p_value = rayleightest(sun_azi, weights=r_mean + bl)
+    if uniform:
+        # phi_mean_00 = circmean((sun_azi - np.pi / 2) % np.pi + np.pi / 2, weights=np.power(r_mean + bl, 8))
+        # phi_var_00 = circvar((sun_azi - np.pi / 2) % np.pi + np.pi / 2, weights=np.power(r_mean + bl, 8))
+        # phi_mean_90 = circmean(sun_azi % np.pi, weights=np.power(r_mean + bl, 8))
+        # phi_var_90 = circvar(sun_azi % np.pi, weights=np.power(r_mean + bl, 8))
+        # phi_mean = phi_mean_00 if phi_var_00 < phi_var_90 else phi_mean_90
+        phi_mean = circmean(sun_azi, weights=np.power(r_mean + bl, 50))
+    else:
+        phi_mean = circmean(sun_azi, weights=np.power(r_mean + bl, 50))
+    # phi_max[j].append(phi_mean)
+
     plt.figure("heinze-%s%s" % ("abs-" if absolute else "uni-" if uniform else "", tb1_names[n_tb1]), figsize=(3, 3))
     ax = plt.subplot(111, polar=True)
     ax.set_theta_zero_location("N")
     ax.set_theta_direction(-1)
-    if absolute:
-        tb1s = np.absolute(tb1s)
-    r_mean = np.median(tb1s[..., n_tb1], axis=0)
-    z = r_mean.max() - r_mean.min()
 
-    r_mean = (r_mean - r_mean.min()) / z - .5
-    r_std = tb1s[..., n_tb1].std(axis=0) / np.sqrt(z)
-    bl = .5
+    y_min, y_max = -.3, 1.1
     plt.bar((sun_azi + np.pi) % (2 * np.pi) - np.pi, bl + r_mean, .1, yerr=r_std, facecolor='black')
     plt.plot(np.linspace(-np.pi, np.pi, 361), np.full(361, bl), 'k-')
+    if uniform:
+        x_mean = [phi_mean, phi_mean, phi_mean + np.pi, phi_mean + np.pi]
+        plt.plot(x_mean, [y_max, y_min, y_min, y_max], 'r-.')
+    else:
+        plt.plot([phi_mean, phi_mean], [y_max, y_min], 'r-.')
     plt.yticks([])
     plt.xticks(np.linspace(0, 2 * np.pi, 8, endpoint=False),
                [r'%d$^\circ$' % x for x in ((np.linspace(0, 360, 8, endpoint=False) + 180) % 360 - 180)])
-    plt.ylim([-.3, 1.1])
+    plt.ylim([y_min, y_max])
     # plt.savefig("heinze-%s%d.eps" % ("abs-" if absolute else "uni-" if uniform else "", n_tb1))
     plt.show()
 
@@ -1050,9 +1115,12 @@ def heinze_experiment(n_tb1=0, eta=.0, absolute=False, uniform=False):
 def heinze_1f(eta=.5, uniform=False):
     from astropy.stats import circmean
 
+    phi_tb1 = 3 * np.pi / 2 - np.linspace(np.pi, 0, 8)
+    # phi_tb1 = np.pi / 2 + np.linspace(0, np.pi, 8)
+
     sun_azi = np.linspace(-np.pi, np.pi, 36, endpoint=False)
     sun_ele = np.full_like(sun_azi, np.pi/2)
-    phi_tb1 = np.linspace(0., 2 * np.pi, 8, endpoint=False)  # TB1 preference angles
+    # phi_tb1 = np.linspace(0., 2 * np.pi, 8, endpoint=False)  # TB1 preference angles
     tb1_ids = np.empty((0, sun_azi.shape[0], 8), dtype=sun_azi.dtype)
     tb1s = np.empty((0, sun_azi.shape[0], 8), dtype=sun_azi.dtype)
 
@@ -1063,19 +1131,168 @@ def heinze_1f(eta=.5, uniform=False):
         tb1_ids = np.vstack([tb1_ids, np.array([sun_azi] * 8).T.reshape((1, 36, 8))])
     z = tb1s.max() - tb1s.min()
     tb1s = (tb1s - tb1s.min()) / z
+
+    phis = np.transpose(np.array([[sun_azi] * 100] * 8), axes=(1, 2, 0))
+    d_deg, d_eff, t, phi, r_tb1 = evaluate(uniform_polariser=uniform,
+                                           sun_azi=sun_azi, sun_ele=sun_ele, tilting=False, noise=0.)
+
+    tb1 = np.transpose(r_tb1, axes=(1, 0, 2)) * 1e+15
+    if uniform:
+        phi_mean = circmean(phis, axis=1, weights=np.power(tb1s, 50))
+
+        for i in xrange(phi_mean.shape[1]):
+            d_00 = np.absolute((phi_mean[:, i] - phi_tb1[-1 - i] + np.pi) % (2 * np.pi) - np.pi)
+            d_pi = np.absolute((phi_mean[:, i] - phi_tb1[-1 - i]) % (2 * np.pi) - np.pi)
+            phi_mean[d_00 > d_pi, i] += np.pi
+
+        phi_max = circmean(phis[0][np.newaxis], axis=1, weights=np.power(tb1, 50)).flatten()
+        for i, phi_max_i in enumerate(phi_max):
+            d_00 = np.absolute((phi_max_i - phi_tb1[-1 - i] + np.pi) % (2 * np.pi) - np.pi)
+            d_pi = np.absolute((phi_max_i - phi_tb1[-1 - i]) % (2 * np.pi) - np.pi)
+            if d_00 > d_pi:
+                phi_max[i] += np.pi
+    else:
+        phi_mean = circmean(phis, axis=1, weights=np.power(tb1s, 50))
+        phi_max = circmean(phi_mean, axis=0)
+
+    x, y = [], []
+    for i, phi_max_i in enumerate(phi_max):
+        x.append([(phi_max[i] + np.pi/18) % (2 * np.pi) - np.pi/18, 1])
+        y.append(i)
+
+    # for i, phi_mean_i in enumerate(phi_mean.T):
+    #     for phi_mean_j in phi_mean_i:
+    #         x.append([(phi_mean_j + np.pi/18) % (2 * np.pi) - np.pi/18, 1])
+    #         y.append(i)
+
+    x = np.array(x)
+    y = np.array(y)
+    a, b = np.linalg.pinv(x).dot(y)
+
     plt.figure("heinze-%sfig-1F" % ("uni-" if uniform else ""), figsize=(5, 5))
-    phi = circmean(tb1_ids, weights=tb1s, axis=1)
-    # plt.boxplot(phi)
-    print phi.shape
-    plt.scatter([4, 5, 6, 7, 0, 1, 2, 3] * 100, np.rad2deg(phi), s=20, c='black')
-    plt.scatter([4, 5, 6, 7, 0, 1, 2, 3], np.rad2deg(circmean(phi, axis=0)), s=50, c='red')
-    print np.rad2deg(circmean(phi, axis=0))
+    # phi = circmean(tb1_ids, weights=tb1s, axis=1)
+    plt.scatter([0, 1, 2, 3, 4, 5, 6, 7][::-1] * 100, np.rad2deg(phi_mean) % 360, s=20, c='black')
+    plt.scatter([0, 1, 2, 3, 4, 5, 6, 7][::-1], np.rad2deg(phi_max) % 360, s=50, c='red', marker='*')
+    plt.plot([-1, 8][::-1], np.rad2deg([(-1 - b) / a, (8 - b) / a]), 'r-.')
     plt.xticks([0, 1, 2, 3, 4, 5, 6, 7],
-               [tb1_names[4], '', tb1_names[6], '', tb1_names[0], '', tb1_names[2], ''])
-    plt.yticks([-180, -135, -90, -45, 0, 45, 90, 135, 180],
-               ['-180', '', '-90', '', '0', '', '90', '', '180'])
-    plt.ylim([-200, 200])
+               [tb1_names[0], '', tb1_names[1], '', tb1_names[2], '', tb1_names[3], ''])
+    plt.yticks([0, 45, 90, 135, 180, 225, 270, 315, 360],
+               ['0', '', '90', '', '180', '', '270', '', '360'])
+    plt.ylim([-20, 380])
+    plt.xlim([-1, 8])
     plt.show()
+
+
+def heinze_real(mode=1, n_tb1=0):
+
+    columns = [
+        ['fz1028'],  # L8/R1
+        ['060126', '060131', '050105a', 'fz1049'],  # L7/R2
+        ['050329', '050309a', '050124b', '041215', 'fz1020', 'fz1038'],  # L6/R3
+        ['060124', '060206a', '060206b', 'fz1016'],  # L5/R4
+        ['050520', '040604b', 'fz1040'],  # L4/R5
+        [],  # L3/R6
+        ['050309b', '050222'],  # L2/R7
+        ['041209', 'fz1051'],  # L1/R8
+    ]
+
+    phi_tb1 = 3*np.pi/2 - np.linspace(0, np.pi, 8)
+    # phi_tb1 = np.linspace(0, np.pi, 8) + np.pi/2
+    phi = np.linspace(np.deg2rad(5), np.deg2rad(355), 36)
+    phi_max = []
+
+    for j, filenames in enumerate(columns if n_tb1 is None else [columns[n_tb1]]):
+        col = j if n_tb1 is None else n_tb1
+        phi_max.append([])
+
+        for i, filename in enumerate(filenames):
+            if 'fz' in filename:
+                continue
+            tb1s = loadmat("../data/TB1_neurons/mean_rotation_%s.mat" % filename)['mean_rotation'][:, ::2]
+            tb1s = tb1s.reshape((-1, 2)).mean(axis=1).reshape((1, -1))
+
+            z = tb1s.max() - tb1s.min()
+            r_std = tb1s.std(axis=0) / np.sqrt(z)
+            bl = .5
+            r_mean = tb1s.flatten() / tb1s.max() - bl
+            p_value = rayleightest(phi, weights=r_mean + bl)
+            phi_mean_00 = circmean((phi - np.pi /2) % np.pi + np.pi/2, weights=np.power(r_mean + bl, 8))
+            phi_var_00 = circvar((phi - np.pi /2) % np.pi + np.pi/2, weights=np.power(r_mean + bl, 8))
+            phi_mean_90 = circmean(phi % np.pi, weights=np.power(r_mean + bl, 8))
+            phi_var_90 = circvar(phi % np.pi, weights=np.power(r_mean + bl, 8))
+            phi_mean = phi_mean_00 if phi_var_00 < phi_var_90 else phi_mean_90
+            d_00 = np.absolute((phi_mean - phi_tb1[-1 - i] + np.pi) % (2 * np.pi) - np.pi)
+            d_pi = np.absolute((phi_mean - phi_tb1[-1 - i]) % (2 * np.pi) - np.pi)
+            if d_00 > d_pi:
+                phi_mean += np.pi
+            phi_max[j].append(phi_mean)
+            print "Col %d - %s, mean: % 3.2f, p = %.4f" % (col, filename, np.rad2deg(phi_mean), p_value)
+
+            if mode == 1:
+                plt.figure("heinze-L%d-R%d-%s" % (8 - col, col + 1, filename), figsize=(3, 3))
+                ax = plt.subplot(111, polar=True)
+                ax.set_theta_zero_location("N")
+                ax.set_theta_direction(-1)
+
+                y_min, y_max = -.3, 1.1
+                plt.bar(phi, bl + r_mean, .1, yerr=r_std, facecolor='black')
+                plt.plot(np.linspace(-np.pi, np.pi, 361), np.full(361, bl), 'k-')
+                x_mean = [phi_mean, phi_mean, phi_mean + np.pi, phi_mean + np.pi]
+                plt.plot(x_mean, [y_max, y_min, y_min, y_max], 'r-.')
+                plt.yticks([])
+                plt.xticks(np.linspace(0, 2 * np.pi, 8, endpoint=False),
+                           [r'%d$^\circ$' % x for x in ((np.linspace(0, 360, 8, endpoint=False) + 180) % 360 - 180)])
+                plt.ylim([y_min, y_max])
+                # plt.savefig("heinze-%s%d.eps" % ("abs-" if absolute else "uni-" if uniform else "", n_tb1))
+                plt.show()
+
+    if mode == 2:
+        plt.figure("heinze-real-fig-1F", figsize=(5, 5))
+        tb1_names = []
+        x, y = [], []
+        for i, phi_max_i in enumerate(phi_max):
+            col = i if n_tb1 is None else n_tb1
+            for j, phi_max_j in enumerate(phi_max_i):
+                d_00 = np.absolute((phi_max_j - phi_tb1[-1-i] + np.pi) % (2 * np.pi) - np.pi)
+                d_pi = np.absolute((phi_max_j - phi_tb1[-1-i]) % (2 * np.pi) - np.pi)
+                if d_00 > d_pi:
+                    phi_max_i[j] += np.pi
+
+            phi_mean_i = circmean(np.array(phi_max_i)) % (2 * np.pi)
+            if not np.isnan(phi_mean_i):
+                x.append([phi_mean_i, 1])
+                y.append(col)
+            tb1_names.append('L%d/R%d' % (8 - col, col + 1))
+            plt.scatter([col] * len(phi_max_i), np.rad2deg(phi_max_i) % 360, s=20, c='black')
+            plt.scatter(col, np.rad2deg(phi_mean_i) % 360, s=50, c='red', marker='*')
+        x = np.array(x)
+        y = np.array(y)
+        a, b = np.linalg.pinv(x).dot(y)
+        plt.plot([-1, 8], np.rad2deg([(-1 - b) / a, (8 - b) / a]), 'r-.')
+        plt.xticks([0, 1, 2, 3, 4, 5, 6, 7],
+                   [tb1_names[0], '', tb1_names[2], '', tb1_names[4], '', tb1_names[6], ''])
+        plt.yticks([0, 45, 90, 135, 180, 225, 270, 315, 360],
+                   ['0', '', '90', '', '180', '', '270', '', '360'])
+        plt.ylim([-20, 380])
+        plt.xlim([-1, 8])
+        plt.show()
+
+
+def tilt_ephem_test(**kwargs):
+    print "Running simple tilt and ephemeris test:", kwargs
+    kwargs['samples'] = kwargs.get('samples', 1)
+    kwargs['show_plots'] = kwargs.get('show_plots', True)
+    kwargs['show_structure'] = kwargs.get('show_structure', False)
+    kwargs['sun_azi'] = kwargs.get('sun_azi', -np.pi/3)
+    kwargs['sun_ele'] = kwargs.get('sun_ele', np.pi/3)
+    # kwargs['tilting'] = kwargs.get('tilting', False)
+    kwargs['tilting'] = kwargs.get('tilting', (np.pi/9, np.pi/2 + np.pi/3))
+    kwargs['ephemeris'] = kwargs.get('ephemeris', True)
+
+    d_err, d_eff, t, _, _ = evaluate(**kwargs)
+    d_mean = np.nanmean(d_err)
+    d_se = np.nanstd(d_err) / np.sqrt(d_err.size)
+    print "Mean cost: %.2f +/- %.4f -- Certainty: %.2f" % (d_mean, d_se, np.nanmean(np.rad2deg(t)))
 
 
 def one_test(**kwargs):
@@ -1162,16 +1379,18 @@ def elevation_test(**kwargs):
 
 
 if __name__ == "__main__":
-    # noise_test()
+    # noise_test(mode=2, repeats=100)
     # nb_neurons_test(mode=2, tilting=True, weighted=False, noise=.0)
     # gate_ring(sigma=np.deg2rad(26), shift=np.deg2rad(0))
     # noise2disturbance_plot()
-    gate_test(tilting=True, mode=2, filename="gate-costs-both.npz")
+    gate_test(tilting=True, mode=3, filename="gate-costs.npz")
     # tilt_test(weighted=True, use_default=False)
-    # structure_test(tilting=True, mode=1, n=60, omega=52, weighted=True)
+    # tilt_ephem_test()
+    # structure_test(tilting=True, mode=3, n=60, omega=56, weighted=True)
     # for n_tb1 in xrange(8):
     #     heinze_experiment(n_tb1=n_tb1, absolute=False, uniform=True)
-    # heinze_1f(eta=.0, uniform=False)
+    # heinze_1f(eta=.5, uniform=True)
+    # heinze_real(mode=2, n_tb1=None)
     # one_test(n=60, omega=56, sigma=np.deg2rad(13), shift=np.deg2rad(40), use_default=False, weighted=True,
     #          show_plots=False, show_structure=False, verbose=True, samples=1000, tilting=True, noise=.0)
     # elevation_test()
