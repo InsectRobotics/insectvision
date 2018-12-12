@@ -1379,11 +1379,11 @@ def elevation_test(**kwargs):
 
 
 if __name__ == "__main__":
-    # noise_test(mode=2, repeats=100)
+    noise_test(mode=2, repeats=100)
     # nb_neurons_test(mode=2, tilting=True, weighted=False, noise=.0)
     # gate_ring(sigma=np.deg2rad(26), shift=np.deg2rad(0))
     # noise2disturbance_plot()
-    gate_test(tilting=True, mode=3, filename="gate-costs.npz")
+    # gate_test(tilting=True, mode=3, filename="gate-costs.npz")
     # tilt_test(weighted=True, use_default=False)
     # tilt_ephem_test()
     # structure_test(tilting=True, mode=3, n=60, omega=56, weighted=True)
