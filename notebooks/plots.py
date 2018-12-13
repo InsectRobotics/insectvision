@@ -20,7 +20,7 @@ def plot_pol_neurons_rotating_linear_polariser(s_1, s_2, r_1, r_2, r_z, r_pol, s
     plt.yticks([0, 1], fontsize=fontsize)
     ax.get_yaxis().set_label_coords(-0.1, 0.5)
     plt.xlim([-45, 135])
-    plt.xticks([-45, 0, 45, 90, 135], ["", "0", "", "90", ""], fontsize=fontsize)
+    plt.xticks([-45, 0, 45, 90, 135], ["", "", "", "", ""], fontsize=fontsize)
     if save_figs:
         plt.savefig("stimuli.eps")
 
@@ -33,6 +33,7 @@ def plot_pol_neurons_rotating_linear_polariser(s_1, s_2, r_1, r_2, r_z, r_pol, s
     ax.annotate(r'$r_\perp$', xy=(0, 1), xytext=(20, 1.05),
                 arrowprops=dict(facecolor='black', arrowstyle="-|>"), fontsize=fontsize)
     plt.ylabel("response", fontsize=fontsize - 1)
+    plt.xlabel("e-vector (degrees)", fontsize=fontsize)
     plt.ylim([0, 1.2])
     plt.yticks([0, 1], fontsize=fontsize)
     ax.get_yaxis().set_label_coords(-0.1, 0.5)
