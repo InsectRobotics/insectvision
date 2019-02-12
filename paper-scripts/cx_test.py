@@ -1,5 +1,5 @@
 from world import load_routes, Hybrid
-from sky.skylight import get_sky_cues
+from sky import Sky
 from compoundeye.geometry import angles_distribution
 from code.compass import decode_sph
 from sphere.transform import sph2vec, vec2sph, tilt
@@ -12,6 +12,9 @@ import matplotlib.pyplot as plt
 
 eps = np.finfo(float).eps
 
+# create sky
+sky = Sky()
+
 # create random terrain
 x_terrain = np.linspace(0, 10, 1001, endpoint=True)
 y_terrain = np.linspace(0, 10, 1001, endpoint=True)
@@ -19,7 +22,9 @@ x_terrain, y_terrain = np.meshgrid(x_terrain, y_terrain)
 try:
     z_terrain = np.load("terrain-%.2f.npz" % 0.6)["terrain"]
 except IOError:
-    z_terrain = np.random.randn(*x_terrain.shape) / 50.
+    z_terrain = np.random.randn(*x_terrain.shape) * 100
+
+print z_terrain.max(), z_terrain.min()
 
 
 def encode(theta, phi, Y, P, A, theta_t=0., phi_t=0., nb_tb1=8, sigma=np.deg2rad(13), shift=np.deg2rad(40)):
@@ -44,7 +49,9 @@ def encode(theta, phi, Y, P, A, theta_t=0., phi_t=0., nb_tb1=8, sigma=np.deg2rad
 
 
 def turn(x, y, yaw, theta, phi, theta_s, phi_s, flow, noise=0.):
-    Y, P, A = get_sky_cues(theta, phi + yaw, theta_s, phi_s, noise=noise)
+    sky.theta_s, sky.phi_s = theta_s, phi_s
+    Y, P, A = sky(theta, phi + yaw, noise=noise)
+    # Y, P, A = get_sky_cues(theta, phi + yaw, theta_s, phi_s, noise=noise)
     r_tb1 = encode(theta, phi, Y, P, A)[::-1]
     _, yaw = decode_sph(r_tb1)
     # yaw = phi_s - yaw
@@ -74,7 +81,7 @@ def get_3d_direction(x, y, yaw, tau=.06):
 if __name__ == "__main__":
     # sensor design
     n = 60
-    omega = 52
+    omega = 56
     theta, phi, fit = angles_distribution(n, float(omega))
     theta_t, phi_t = 0., 0.
 
@@ -96,8 +103,10 @@ if __name__ == "__main__":
     # world = load_world()
     routes = load_routes()
     flow = dx * np.ones(2) / np.sqrt(2)
+    max_theta = 0.
 
-    for ni, noise in enumerate([0.0, 0.5, 1.0, 1.5, 2.0]):
+    # for ni, noise in enumerate([0.0, 0.5, 1.0, 1.5, 2.0]):
+    for ni, noise in enumerate([0.0]):
 
         # stats
         d_x = []  # logarithmic distance
@@ -105,7 +114,8 @@ if __name__ == "__main__":
         tau = []  # tortuosity
         ri = 0
 
-        for route in routes[::2]:
+        # for route in routes[::2]:
+        for route in [routes[0]]:
             net = CX(noise=0., pontin=False)
             net.update = True
 
@@ -123,8 +133,13 @@ if __name__ == "__main__":
             for _, _, _, yaw in oroute:
                 if mode == "uneven":
                     theta_t, phi_t = get_3d_direction(opath[-1][0], opath[-1][1], yaw, tau=ttau)
+                    max_theta = max_theta if max_theta > np.absolute(theta_t) else np.absolute(theta_t)
+                    print np.rad2deg(max_theta)
                 theta_n, phi_n = tilt(theta_t, phi_t, theta, phi + yaw)
-                Y, P, A = get_sky_cues(theta_n, phi_n, theta_s, phi_s, noise=noise)
+
+                sky.theta_s, sky.phi_s = theta_s, phi_s
+                Y, P, A = sky(theta_n, phi_n, noise=noise)
+
                 r_tb1 = encode(theta, phi, Y, P, A)
                 yaw0 = yaw
                 _, yaw = np.pi - decode_sph(r_tb1) + phi_s
@@ -163,7 +178,10 @@ if __name__ == "__main__":
                 if mode == "uneven":
                     theta_t, phi_t = get_3d_direction(ipath[-1][0], ipath[-1][1], yaw, tau=ttau)
                 theta_n, phi_n = tilt(theta_t, phi_t, theta, phi + yaw)
-                Y, P, A = get_sky_cues(theta_n, phi_n, theta_s, phi_s, noise=noise)
+
+                sky.theta_s, sky.phi_s = theta_s, phi_s
+                Y, P, A = sky(theta_n, phi_n, noise=noise)
+
                 r_tb1 = encode(theta, phi, Y, P, A)
                 _, yaw = np.pi - decode_sph(r_tb1) + phi_s
                 # motor = net(r_tb1, flow)
@@ -227,11 +245,12 @@ if __name__ == "__main__":
         print "Noise:", noise
     plt.show()
 
-if __name__ == "__main_2_":
+if __name__ == "__main__":
     tau = .6
 
     try:
-        terrain = np.load("terrain-%.2f.npz" % tau)["terrain"]
+        # terrain = np.load("terrain-%.2f.npz" % tau)["terrain"]
+        terrain = np.array([x_terrain, y_terrain, z_terrain]).T
     except IOError:
         terrain = np.zeros_like(z_terrain)
         for i in xrange(terrain.shape[0]):
@@ -248,4 +267,5 @@ if __name__ == "__main_2_":
 
     plt.figure("terrain", figsize=(5, 5))
     plt.imshow(terrain, cmap="coolwarm", extent=[0, 10, 0, 10])
+    plt.colorbar()
     plt.show()

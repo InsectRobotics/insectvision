@@ -9,8 +9,8 @@ def plot_pol_neurons_rotating_linear_polariser(s_1, s_2, r_1, r_2, r_z, r_pol, s
 
     ax = plt.subplot2grid((2, 2), (0, 0))
     plt.plot([0, 0], [0, 1.2], "k-", lw=1)
-    plt.plot(s_1[0], s_1[1], label=r'$s_\parallel$')
     plt.plot(s_2[0], s_2[1], label=r'$s_\perp$')
+    plt.plot(s_1[0], s_1[1], label=r'$s_\parallel$')
     ax.annotate(r'$s_\parallel$', xy=(90, 1), xytext=(110, 1.05),
                 arrowprops=dict(facecolor='black', arrowstyle="-|>"), fontsize=fontsize)
     ax.annotate(r'$s_\perp$', xy=(0, 1), xytext=(20, 1.05),
@@ -26,8 +26,8 @@ def plot_pol_neurons_rotating_linear_polariser(s_1, s_2, r_1, r_2, r_z, r_pol, s
 
     ax = plt.subplot2grid((2, 2), (1, 0))
     plt.plot([0, 0], [0, 1.2], "k-", lw=1)
-    plt.plot(r_1[0], r_1[1], label=r'$r_\parallel$')
     plt.plot(r_2[0], r_2[1], label=r'$r_\perp$')
+    plt.plot(r_1[0], r_1[1], label=r'$r_\parallel$')
     ax.annotate(r'$r_\parallel$', xy=(90, 1), xytext=(110, 1.05),
                 arrowprops=dict(facecolor='black', arrowstyle="-|>"), fontsize=fontsize)
     ax.annotate(r'$r_\perp$', xy=(0, 1), xytext=(20, 1.05),

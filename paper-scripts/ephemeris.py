@@ -172,6 +172,7 @@ if __name__ == "__main__":
             if cur > end:
                 cur = obs.previous_rising(sun).datetime() + delta
 
+            print cur, end
             while cur <= end:
                 obs.date = cur
                 sun.compute(obs)

@@ -489,9 +489,9 @@ def gate_ring(sigma=np.deg2rad(13), shift=np.deg2rad(40), theta_t=0., phi_t=0.):
     plt.show()
 
 
-def heinze_experiment(n_tb1=0, eta=.0, absolute=False, uniform=False):
+def heinze_experiment(n_tb1=0, eta=.0, sun_ele=np.pi/2, absolute=False, uniform=False):
     sun_azi = np.linspace(-np.pi, np.pi, 36, endpoint=False)
-    sun_ele = np.full_like(sun_azi, np.pi/2)
+    sun_ele = np.full_like(sun_azi, sun_ele)
     tb1s = np.empty((0, sun_azi.shape[0], 8), dtype=sun_azi.dtype)
 
     for _ in np.linspace(0, 1, 100):
@@ -810,14 +810,14 @@ def elevation_test(**kwargs):
 if __name__ == "__main__":
     # noise_test(mode=2, repeats=100)
     # nb_neurons_test(mode=2, tilting=True, weighted=False, noise=.0)
-    # gate_ring(sigma=np.deg2rad(26), shift=np.deg2rad(0))
+    gate_ring(sigma=np.deg2rad(26), shift=np.deg2rad(0))
     # noise2disturbance_plot()
-    gate_test(tilting=True, mode=3, filename="gate-costs.npz")
+    # gate_test(tilting=True, mode=3, filename="gate-costs.npz")
     # tilt_test(weighted=True, use_default=False)
     # tilt_ephem_test()
     # structure_test(tilting=True, mode=3, n=60, omega=56, weighted=True)
     # for n_tb1 in xrange(8):
-    #     heinze_experiment(n_tb1=n_tb1, absolute=False, uniform=True)
+    #     heinze_experiment(n_tb1=n_tb1, sun_ele=np.deg2rad(91), absolute=False, uniform=False)
     # heinze_1f(eta=.5, uniform=True)
     # heinze_real(mode=2, n_tb1=None)
     # one_test(n=60, omega=56, sigma=np.deg2rad(13), shift=np.deg2rad(40), use_default=False, weighted=True,

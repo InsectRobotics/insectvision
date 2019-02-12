@@ -12,6 +12,21 @@ def angles_distribution(nb_lenses, fov):
 
     if os.path.isfile(filename):
         import yaml
+
+        r_l = LENS_RADIUS  # the small radius of a hexagon (mm)
+        R_l = r_l * 2 / np.sqrt(3)  # the big radius of a lens (mm)
+        S_l = 3 * r_l * R_l  # area of a lens (mm^2)
+
+        S_a = nb_lenses * S_l  # area of the dome surface (mm^2)
+        R_c = np.sqrt(S_a / (2 * np.pi * (1. - np.cos(np.deg2rad(fov / 2)))))  # radius of the curvature (mm)
+        S_c = 4 * np.pi * np.square(R_c)  # area of the whole sphere (mm^2)
+
+        print "Hexagon radius (r):", r_l
+        print "Lens radius (R):", R_l
+        print "Lens area (S):", S_l
+        print "Curvature radius (R_c):", R_c
+        print "Dome area (S_a):", S_a
+
         with open(filename, "r") as f:
             params = yaml.load(f)
             thetas = np.array(params['theta'])
@@ -30,6 +45,12 @@ def angles_distribution(nb_lenses, fov):
         S_a = nb_lenses * S_l  # area of the dome surface (mm^2)
         R_c = np.sqrt(S_a / (2 * np.pi * (1. - np.cos(theta))))  # radius of the curvature (mm)
         S_c = 4 * np.pi * np.square(R_c)  # area of the whole sphere (mm^2)
+
+        print "Hexagon radius (r):", r_l
+        print "Lens radius (R):", R_l
+        print "Lens area (S):", S_l
+        print "Curvature radius (R_c):", R_c
+        print "Dome area (S_a):", S_a
 
         coverage = S_a / S_c
         # compute the parameters of the sphere

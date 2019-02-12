@@ -87,41 +87,64 @@ if __name__ == "__main__":
     from compoundeye import POLCompassDRA
     from environment import Sky
 
-    noise = .99
+    samples = 1000
+    noise = .0
+    # noise = .99
 
-    sky = Sky(np.pi/2, np.pi)
-    dra = POLCompassDRA()
-    r = dra(sky, noise=noise)
+    theta, phi = fibonacci_sphere(samples, 180)
+    sky = Sky(np.pi/6, np.pi)
+    y, p, a = sky(theta, phi)
+    # y, p, a, theta, phi = skyfeatures(noise, samples=50000)
+    # dra = POLCompassDRA()
+    # r = dra(sky, noise=noise)
+    #
+    # print r.shape
+    # print r
+    #
+    # plt.figure("pol-%02d" % (10 * noise), figsize=(3, 3))
+    # ax = plt.subplot(111, polar=True)
+    # ax.scatter(dra.phi, dra.theta, s=100, marker='.', c=r, cmap="coolwarm", vmin=-.1, vmax=.1)
+    # ax.set_theta_zero_location("N")
+    # ax.set_theta_direction(-1)
+    # ax.set_ylim([0, np.deg2rad(30)])
+    # plt.yticks([])
+    # plt.xticks([])
 
-    print r.shape
-    print r
+    print y[y > 0].min()
 
-    plt.figure("pol-%02d" % (10 * noise), figsize=(3, 3))
+    plt.figure("sky-lum-%02d" % (10 * noise), figsize=(3, 3))
     ax = plt.subplot(111, polar=True)
-    ax.scatter(dra.phi, dra.theta, s=100, marker='.', c=r, cmap="coolwarm", vmin=-.1, vmax=.1)
+    es = ax.scatter(phi, theta, s=10, marker='.', c=y, cmap="Blues_r", vmin=-0., vmax=7.)
     ax.set_theta_zero_location("N")
     ax.set_theta_direction(-1)
-    ax.set_ylim([0, np.deg2rad(30)])
+    ax.set_ylim([0, np.deg2rad(90)])
+    plt.colorbar(es)
     plt.yticks([])
     plt.xticks([])
-    #
-    # print p.max()
-    #
-    # plt.figure("sky-dop-%02d" % (10 * noise), figsize=(3, 3))
-    # ax = plt.subplot(111, polar=True)
-    # ax.scatter(phi, theta, s=10, marker='.', c=p, cmap="Greys", vmin=0, vmax=1)
-    # ax.set_theta_zero_location("N")
-    # ax.set_theta_direction(-1)
-    # ax.set_ylim([0, np.deg2rad(90)])
-    # plt.yticks([])
-    # plt.xticks([])
-    #
-    # plt.figure("sky-aop-%02d" % (10 * noise), figsize=(3, 3))
-    # ax = plt.subplot(111, polar=True)
-    # ax.scatter(phi, theta, s=10, marker='.', c=a, cmap="hsv", vmin=-np.pi, vmax=np.pi)
-    # ax.set_theta_zero_location("N")
-    # ax.set_theta_direction(-1)
-    # ax.set_ylim([0, np.deg2rad(90)])
-    # plt.yticks([])
-    # plt.xticks([])
+    # plt.savefig('sky-lum-%02d.svg' % (10 * noise))
+
+    print p.max()
+
+    plt.figure("sky-dop-%02d" % (10 * noise), figsize=(3, 3))
+    ax = plt.subplot(111, polar=True)
+    es = ax.scatter(phi, theta, s=10, marker='.', c=p, cmap="Greys", vmin=0, vmax=1)
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+    ax.set_ylim([0, np.deg2rad(90)])
+    plt.colorbar(es)
+    plt.yticks([])
+    plt.xticks([])
+    # plt.savefig('sky-dop-%02d.svg' % (10 * noise))
+
+    plt.figure("sky-aop-%02d" % (10 * noise), figsize=(3, 3))
+    ax = plt.subplot(111, polar=True)
+    es = ax.scatter(phi, theta, s=10, marker='.', c=a, cmap="hsv", vmin=-np.pi, vmax=np.pi)
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+    ax.set_ylim([0, np.deg2rad(90)])
+    plt.colorbar(es)
+    plt.yticks([])
+    plt.xticks([])
+    # plt.savefig('sky-aop-%02d.svg' % (10 * noise))
+
     plt.show()
