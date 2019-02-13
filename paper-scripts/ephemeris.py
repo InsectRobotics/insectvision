@@ -1,7 +1,7 @@
-from sky import get_seville_observer
-from sky.utils import sun2lonlat
+from environment import get_seville_observer
+# from environment.utils import sun2lonlat
 from compoundeye.geometry import fibonacci_sphere
-from comp_model_plots import evaluate
+from compoundeye.evaluation import evaluate
 
 from ephem import Sun
 from datetime import datetime, timedelta
@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
     # mode = "ephemeris"
-    # mode = "res2ele"
-    mode = "res2azi"
+    mode = "res2ele"
+    # mode = "res2azi"
 
     sun = Sun()
     obs = get_seville_observer()
@@ -38,15 +38,17 @@ if __name__ == "__main__":
         samples = theta_s.size
 
         for e, a in zip(theta_s, phi_s):
-            d_err, d_eff, tau = evaluate(sun_azi=a, sun_ele=e,
-                                         tilting=False, noise=0.)
+            d_err, d_eff, tau, _, _ = evaluate(sun_azi=a, sun_ele=e, tilting=False, noise=0.)
             azi.append(a)
             ele.append(e)
             res.append(tau.flatten())
             # res.append(d_eff.flatten())
 
         ele = np.rad2deg(ele).flatten()
-        res = np.array(res).flatten()
+        # res = np.array(res).flatten() - np.pi/2  # Min: 0.02, Max: 2.04; Min: 18.22, Max: 66.91
+        res = (np.array(res).flatten() - 1.06) * 7 / 4
+        # res = (np.array(res).flatten() - 1) * 35 / 20
+        # res = (np.array(res).flatten() - 2.12) * 7 / 8
         # res = np.array(res)
         ele_pred = 26 * (1 - 2 * np.arcsin(1 - res) / np.pi) + 15  # + np.random.randn(res.size)
 
@@ -81,7 +83,7 @@ if __name__ == "__main__":
             while cur <= end:
                 obs.date = cur
                 sun.compute(obs)
-                a, e = sun2lonlat(sun)
+                a, e = sun.az, np.pi/2 - sun.alt
                 if len(azi) > 0:
                     d = 60. / dt * np.absolute((a - azi[-1] + np.pi) % (2 * np.pi) - np.pi)
                     if d > np.pi/2:
@@ -91,8 +93,7 @@ if __name__ == "__main__":
                 else:
                     azi_diff.append(0.)
 
-                d_err, d_eff, tau = evaluate(sun_azi=a, sun_ele=e,
-                                             tilting=False, noise=0.)
+                d_err, d_eff, tau, _, _ = evaluate(sun_azi=a, sun_ele=e, tilting=False, noise=0.)
                 azi.append(a % (2 * np.pi))
                 ele.append(e)
                 res.append(tau.flatten())
@@ -173,10 +174,11 @@ if __name__ == "__main__":
             if cur > end:
                 cur = obs.previous_rising(sun).datetime() + delta
 
+            print cur, end
             while cur <= end:
                 obs.date = cur
                 sun.compute(obs)
-                a, e = sun2lonlat(sun)
+                a, e = sun.az, np.pi/2 - sun.alt
                 if len(azi) > 0:
                     d = 60. / dt * np.absolute((a - azi[-1] + np.pi) % (2 * np.pi) - np.pi)
                     if d > np.pi/2:

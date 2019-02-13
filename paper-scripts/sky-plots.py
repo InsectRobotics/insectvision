@@ -63,43 +63,88 @@ def skyfeatures(noise=0., simple_pol=False, samples=1000, verbose=False):
     _, A = tilt(theta_s, phi_s + np.pi, theta, phi)
 
     # create cloud disturbance
-    if noise > 0:
-        eta = np.absolute(np.random.randn(*P.shape)) < noise
+    if type(noise) is np.ndarray:
+        if noise.size == P.size:
+            # print "yeah!"
+            eta = np.array(noise, dtype=bool)
+        else:
+            eta = np.zeros_like(theta, dtype=bool)
+            eta[:noise.size] = noise
+    elif noise > 0:
+        eta = np.argsort(np.absolute(np.random.randn(*P.shape)))[:int(noise * P.shape[0])]
+        # eta = np.array(np.absolute(np.random.randn(*P.shape)) < noise, dtype=bool)
         if verbose:
             print "Noise level: %.4f (%.2f %%)" % (noise, 100. * eta.sum() / float(eta.size))
-        Y[eta] = 10.
-        P[eta] = 0.  # destroy the polarisation pattern
     else:
-        eta = np.zeros(1)
+        eta = np.zeros_like(theta, dtype=bool)
+    P[eta] = 0.  # destroy the polarisation pattern
+    Y[eta] = 10.
 
     return Y, P, A, theta, phi
 
 
 if __name__ == "__main__":
-    noise = 1.33
+    from compoundeye import POLCompassDRA
+    from environment import Sky
 
-    y, p, a, theta, phi = skyfeatures(noise=noise, samples=3000)
+    samples = 1000
+    noise = .0
+    # noise = .99
 
-    print y.max()
+    theta, phi = fibonacci_sphere(samples, 180)
+    sky = Sky(np.pi/6, np.pi)
+    y, p, a = sky(theta, phi)
+    # y, p, a, theta, phi = skyfeatures(noise, samples=50000)
+    # dra = POLCompassDRA()
+    # r = dra(sky, noise=noise)
+    #
+    # print r.shape
+    # print r
+    #
+    # plt.figure("pol-%02d" % (10 * noise), figsize=(3, 3))
+    # ax = plt.subplot(111, polar=True)
+    # ax.scatter(dra.phi, dra.theta, s=100, marker='.', c=r, cmap="coolwarm", vmin=-.1, vmax=.1)
+    # ax.set_theta_zero_location("N")
+    # ax.set_theta_direction(-1)
+    # ax.set_ylim([0, np.deg2rad(30)])
+    # plt.yticks([])
+    # plt.xticks([])
+
+    print y[y > 0].min()
 
     plt.figure("sky-lum-%02d" % (10 * noise), figsize=(3, 3))
     ax = plt.subplot(111, polar=True)
-    ax.scatter(phi, theta, s=10, marker='.', c=y, cmap="Blues_r", vmin=0, vmax=7)
+    es = ax.scatter(phi, theta, s=10, marker='.', c=y, cmap="Blues_r", vmin=-0., vmax=7.)
     ax.set_theta_zero_location("N")
     ax.set_theta_direction(-1)
     ax.set_ylim([0, np.deg2rad(90)])
+    plt.colorbar(es)
     plt.yticks([])
     plt.xticks([])
+    plt.savefig('sky-lum-%02d.svg' % (10 * noise))
 
     print p.max()
 
     plt.figure("sky-dop-%02d" % (10 * noise), figsize=(3, 3))
     ax = plt.subplot(111, polar=True)
-    ax.scatter(phi, theta, s=10, marker='.', c=p, cmap="Greys", vmin=0, vmax=1)
+    es = ax.scatter(phi, theta, s=10, marker='.', c=p, cmap="Greys", vmin=0, vmax=1)
     ax.set_theta_zero_location("N")
     ax.set_theta_direction(-1)
     ax.set_ylim([0, np.deg2rad(90)])
+    plt.colorbar(es)
     plt.yticks([])
     plt.xticks([])
+    plt.savefig('sky-dop-%02d.svg' % (10 * noise))
+
+    plt.figure("sky-aop-%02d" % (10 * noise), figsize=(3, 3))
+    ax = plt.subplot(111, polar=True)
+    es = ax.scatter(phi, theta, s=10, marker='.', c=a, cmap="hsv", vmin=-np.pi, vmax=np.pi)
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+    ax.set_ylim([0, np.deg2rad(90)])
+    plt.colorbar(es)
+    plt.yticks([])
+    plt.xticks([])
+    plt.savefig('sky-aop-%02d.svg' % (10 * noise))
 
     plt.show()

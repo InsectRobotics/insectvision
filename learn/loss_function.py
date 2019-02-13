@@ -8,7 +8,7 @@ from sphere import angle_between, sph2vec, vec2sph, azidist
 from sphere.transform import tilt as transtilt
 
 import numpy as np
-import pygmo as pg
+# import pygmo as pg
 
 __author__ = "Evripidis Gkanias"
 __copyright__ = "Copyright 2018, The Invisible Cues Project"
@@ -82,6 +82,7 @@ class SensorObjective(object):
         return [self._fitness(theta, phi, alpha, w=w, tilt=self.__consider_tilting, noise=self._noise)]
 
     def gradient(self, x):
+        import pygmo as pg
         return pg.estimate_gradient_h(self.fitness, x)
 
     def get_bounds(self):
