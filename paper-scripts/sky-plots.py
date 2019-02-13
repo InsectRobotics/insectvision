@@ -121,7 +121,7 @@ if __name__ == "__main__":
     plt.colorbar(es)
     plt.yticks([])
     plt.xticks([])
-    # plt.savefig('sky-lum-%02d.svg' % (10 * noise))
+    plt.savefig('sky-lum-%02d.svg' % (10 * noise))
 
     print p.max()
 
@@ -134,7 +134,7 @@ if __name__ == "__main__":
     plt.colorbar(es)
     plt.yticks([])
     plt.xticks([])
-    # plt.savefig('sky-dop-%02d.svg' % (10 * noise))
+    plt.savefig('sky-dop-%02d.svg' % (10 * noise))
 
     plt.figure("sky-aop-%02d" % (10 * noise), figsize=(3, 3))
     ax = plt.subplot(111, polar=True)
@@ -145,6 +145,6 @@ if __name__ == "__main__":
     plt.colorbar(es)
     plt.yticks([])
     plt.xticks([])
-    # plt.savefig('sky-aop-%02d.svg' % (10 * noise))
+    plt.savefig('sky-aop-%02d.svg' % (10 * noise))
 
     plt.show()

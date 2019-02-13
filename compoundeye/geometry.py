@@ -5,7 +5,7 @@ LENS_RADIUS = 1.  # mm
 A_lens = np.pi * np.square(LENS_RADIUS)
 
 
-def angles_distribution(nb_lenses, fov):
+def angles_distribution(nb_lenses, fov, verbose=False):
     import os
     __root__ = os.path.split(os.path.dirname(os.path.abspath(__file__)))[0]
     filename = os.path.join(__root__, "data", "compoundeye", "sensor-%d-%d.yaml" % (nb_lenses, fov))
@@ -21,11 +21,12 @@ def angles_distribution(nb_lenses, fov):
         R_c = np.sqrt(S_a / (2 * np.pi * (1. - np.cos(np.deg2rad(fov / 2)))))  # radius of the curvature (mm)
         S_c = 4 * np.pi * np.square(R_c)  # area of the whole sphere (mm^2)
 
-        print "Hexagon radius (r):", r_l
-        print "Lens radius (R):", R_l
-        print "Lens area (S):", S_l
-        print "Curvature radius (R_c):", R_c
-        print "Dome area (S_a):", S_a
+        if verbose:
+            print "Hexagon radius (r):", r_l
+            print "Lens radius (R):", R_l
+            print "Lens area (S):", S_l
+            print "Curvature radius (R_c):", R_c
+            print "Dome area (S_a):", S_a
 
         with open(filename, "r") as f:
             params = yaml.load(f)
@@ -46,11 +47,12 @@ def angles_distribution(nb_lenses, fov):
         R_c = np.sqrt(S_a / (2 * np.pi * (1. - np.cos(theta))))  # radius of the curvature (mm)
         S_c = 4 * np.pi * np.square(R_c)  # area of the whole sphere (mm^2)
 
-        print "Hexagon radius (r):", r_l
-        print "Lens radius (R):", R_l
-        print "Lens area (S):", S_l
-        print "Curvature radius (R_c):", R_c
-        print "Dome area (S_a):", S_a
+        if verbose:
+            print "Hexagon radius (r):", r_l
+            print "Lens radius (R):", R_l
+            print "Lens area (S):", S_l
+            print "Curvature radius (R_c):", R_c
+            print "Dome area (S_a):", S_a
 
         coverage = S_a / S_c
         # compute the parameters of the sphere

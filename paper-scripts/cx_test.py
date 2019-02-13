@@ -1,5 +1,5 @@
 from world import load_routes, Hybrid
-from sky import Sky
+from environment import Sky
 from compoundeye.geometry import angles_distribution
 from code.compass import decode_sph
 from sphere.transform import sph2vec, vec2sph, tilt
@@ -20,9 +20,9 @@ x_terrain = np.linspace(0, 10, 1001, endpoint=True)
 y_terrain = np.linspace(0, 10, 1001, endpoint=True)
 x_terrain, y_terrain = np.meshgrid(x_terrain, y_terrain)
 try:
-    z_terrain = np.load("terrain-%.2f.npz" % 0.6)["terrain"]
+    z_terrain = np.load("terrain-%.2f.npz" % 0.6)["terrain"] * 100
 except IOError:
-    z_terrain = np.random.randn(*x_terrain.shape) * 100
+    z_terrain = np.random.randn(*x_terrain.shape) / 50
 
 print z_terrain.max(), z_terrain.min()
 
@@ -105,8 +105,8 @@ if __name__ == "__main__":
     flow = dx * np.ones(2) / np.sqrt(2)
     max_theta = 0.
 
-    # for ni, noise in enumerate([0.0, 0.5, 1.0, 1.5, 2.0]):
-    for ni, noise in enumerate([0.0]):
+    for ni, noise in enumerate([0.0, 0.2, 0.4, 0.6, 0.8, 1.0]):
+    # for ni, noise in enumerate([0.0]):
 
         # stats
         d_x = []  # logarithmic distance
@@ -134,7 +134,6 @@ if __name__ == "__main__":
                 if mode == "uneven":
                     theta_t, phi_t = get_3d_direction(opath[-1][0], opath[-1][1], yaw, tau=ttau)
                     max_theta = max_theta if max_theta > np.absolute(theta_t) else np.absolute(theta_t)
-                    print np.rad2deg(max_theta)
                 theta_n, phi_n = tilt(theta_t, phi_t, theta, phi + yaw)
 
                 sky.theta_s, sky.phi_s = theta_s, phi_s
@@ -218,6 +217,8 @@ if __name__ == "__main__":
 
             ri += 1
 
+        print "Maximum tilting: %.2f deg" % np.rad2deg(max_theta)
+
         d_x_mean = np.mean(d_x, axis=0)
         d_x_se = np.std(d_x, axis=0) / np.sqrt(len(d_x))
         d_c_mean = np.mean(d_c, axis=0)
@@ -250,7 +251,7 @@ if __name__ == "__main__":
 
     try:
         # terrain = np.load("terrain-%.2f.npz" % tau)["terrain"]
-        terrain = np.array([x_terrain, y_terrain, z_terrain]).T
+        terrain = z_terrain
     except IOError:
         terrain = np.zeros_like(z_terrain)
         for i in xrange(terrain.shape[0]):
@@ -266,6 +267,6 @@ if __name__ == "__main__":
         np.savez_compressed("terrain-%.2f.npz" % tau, terrain=terrain)
 
     plt.figure("terrain", figsize=(5, 5))
-    plt.imshow(terrain, cmap="coolwarm", extent=[0, 10, 0, 10])
+    plt.imshow(terrain, cmap="coolwarm", extent=[0, 10, 0, 10], vmin=-.5, vmax=.5)
     plt.colorbar()
     plt.show()
