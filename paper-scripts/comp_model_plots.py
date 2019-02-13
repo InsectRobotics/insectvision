@@ -820,6 +820,6 @@ if __name__ == "__main__":
     #     heinze_experiment(n_tb1=n_tb1, sun_ele=np.deg2rad(91), absolute=False, uniform=False)
     # heinze_1f(eta=.5, uniform=True)
     # heinze_real(mode=2, n_tb1=None)
-    one_test(n=60, omega=56, sigma_pol=np.deg2rad(13), shift_pol=np.deg2rad(40), use_default=False, weighted=True,
-             show_plots=True, show_structure=False, verbose=True, samples=1, tilting=False, noise=.0)
+    one_test(nb_pol=60, omega=56, sigma=np.deg2rad(13), shift=np.deg2rad(40), sun_azi=np.pi/3, sun_ele=np.pi/3,
+             snap=True, verbose=True, samples=1, tilting=False, noise=.0)
     # elevation_test()

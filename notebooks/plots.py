@@ -238,3 +238,99 @@ def plot_ephemeris(obs, dt=10):
     plt.yticks([10, 20, 30, 40, 50, 60], [""] * 6)
 
     return plt
+
+
+def plot_snapshot(theta, phi, r_pol, r_sol, r_tcl, w_sol=None, w_tcl=None, phi_sol=None, phi_tcl=None,
+                  theta_t=0., phi_t=0., sun_ele=None, sun_azi=None, subplot=111):
+    x = np.linspace(0, 2 * np.pi, 721)
+    nb_pol = r_pol.size
+    nb_sol = r_sol.size
+    nb_tcl = r_tcl.size
+    if phi_sol is None:
+        phi_sol = np.linspace(0., 2 * np.pi, nb_sol, endpoint=False)
+    if phi_tcl is None:
+        phi_tcl = phi_sol
+
+    s = subplot // 100
+    u = (subplot % 100) // 10
+    b = subplot % 10
+
+    if w_sol is not None:
+        ax = plt.subplot(6, u, u * 3 + b)
+        plt.imshow(5 * w_sol.T, cmap="coolwarm", vmin=-1, vmax=1)
+        plt.yticks([0, 7], ["1", "8"])
+        plt.xticks([0, 59], ["1", "60"])
+
+        ax.tick_params(axis='both', which='major', labelsize=16)
+        ax.tick_params(axis='both', which='minor', labelsize=16)
+
+    if w_tcl is not None:
+        ax = plt.subplot(12, u, u * 8 + b)
+        plt.imshow(w_tcl.T, cmap="coolwarm", vmin=-1, vmax=1)
+        plt.xticks([0, 7], ["1", "8"])
+        plt.yticks([0, 7], ["1", "8"])
+
+        ax.tick_params(axis='both', which='major', labelsize=16)
+        ax.tick_params(axis='both', which='minor', labelsize=16)
+
+    ax = plt.subplot(2, u, b, polar=True)
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+    ax.grid(False)
+
+    # POL
+    ax.scatter(phi, theta, s=90, c=r_pol, marker='o', edgecolor='black', cmap="coolwarm", vmin=-1, vmax=1)
+
+    # SOL
+    y = np.deg2rad(37.5)
+    sy = np.deg2rad(15)
+    ax.fill_between(x, np.full_like(x, y - sy / 2), np.full_like(x, y + sy / 2),
+                    facecolor="C1", alpha=.5, label="SOL")
+    ax.scatter(phi_sol, np.full(nb_sol, np.deg2rad(37.5)), s=600,
+               c=r_sol, marker='o', edgecolor='red', cmap="coolwarm", vmin=-1, vmax=1)
+
+    for ii, pp in enumerate(phi_sol):
+        ax.text(pp - np.pi / 13, y, "%d" % (ii + 1), ha="center", va="center", size=10,
+                bbox=dict(boxstyle="circle", fc="w", ec="k"))
+        ax.arrow(pp, np.deg2rad(33), 0, np.deg2rad(4), fc='k', ec='k',
+                 head_width=.1, head_length=.1, overhang=.3)
+
+    # TCL
+    y = np.deg2rad(52.5)
+    sy = np.deg2rad(15)
+    ax.fill_between(x, np.full_like(x, y - sy / 2), np.full_like(x, y + sy / 2),
+                    facecolor="C2", alpha=.5, label="TCL")
+    ax.scatter(phi_tcl, np.full_like(phi_tcl, y), s=600,
+               c=r_tcl, marker='o', edgecolor='green', cmap="coolwarm", vmin=-1, vmax=1)
+    for ii, pp in enumerate(phi_tcl):
+        ax.text(pp + np.pi / 18, y, "%d" % (ii + 1), ha="center", va="center", size=10,
+                bbox=dict(boxstyle="circle", fc="w", ec="k"))
+        dx, dy = np.deg2rad(4) * np.sin(0.), np.deg2rad(4) * np.cos(0.)
+        ax.arrow(pp - dx, y - dy / 2 - np.deg2rad(2.5), dx, dy, fc='k', ec='k',
+                 head_width=.07, head_length=.1, overhang=.3)
+
+    # Sun position
+    if sun_ele is not None and sun_azi is not None:
+        ax.scatter(sun_azi, sun_ele, s=500, marker='o', edgecolor='black', facecolor='yellow')
+        ax.scatter(phi_t, theta_t, s=200, marker='o', edgecolor='black', facecolor='yellowgreen')
+
+    # Decoded TCL
+    R = r_tcl.dot(np.exp(-np.arange(nb_tcl) * (0. + 1.j) * 2. * np.pi / float(nb_tcl)))
+    a_pred = (np.pi - np.arctan2(R.imag, R.real)) % (2. * np.pi) - np.pi  # sun azimuth (prediction)
+
+    ax.plot([0, a_pred], [0, np.pi / 2], 'k--', lw=1)
+    ax.arrow(a_pred, 0, 0, np.deg2rad(20),
+             fc='k', ec='k', head_width=.3, head_length=.2, overhang=.3)
+
+    ax.legend(ncol=2, loc=(.15, -2.), fontsize=16)
+
+    ax.set_ylim([0, np.deg2rad(60)])
+    ax.set_yticks([])
+    ax.set_xticks(np.linspace(0, 2 * np.pi, 4, endpoint=False))
+    ax.set_xticklabels([r'N', r'E', r'S', r'W'])
+    ax.tick_params(axis='both', which='major', labelsize=16)
+    ax.tick_params(axis='both', which='minor', labelsize=16)
+
+    plt.subplots_adjust(left=.07, bottom=.0, right=.93, top=.96)
+
+    return plt
