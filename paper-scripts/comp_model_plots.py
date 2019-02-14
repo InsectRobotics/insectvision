@@ -116,7 +116,7 @@ def noise_test(save=None, mode=0, repeats=10, **kwargs):
     taus = np.zeros_like(etas)
     means = np.zeros_like(etas)
     ses = np.zeros_like(etas)
-    for i in xrange(10):
+    for i in xrange(repeats):
         noise = np.ones(n, int)
         if mode > 0:
             theta, phi, fit = angles_distribution(n, float(omega))
@@ -134,7 +134,7 @@ def noise_test(save=None, mode=0, repeats=10, **kwargs):
                 else:
                     noise[np.abs(x) > (1 - eta)] = 1
             d_err, d_eff, tau, _, _ = evaluate(
-                n=n, omega=omega, noise=noise, verbose=False, tilting=True, **kwargs
+                nb_pol=n, omega=omega, noise=noise, verbose=False, tilting=True, **kwargs
             )
             means[ii] = (means[ii] * i + d_err.mean()) / (i + 1)
             ses[ii] = (ses[ii] * i + d_err.std() / np.sqrt(d_err.size)) / (i + 1)
@@ -167,7 +167,7 @@ def noise_test(save=None, mode=0, repeats=10, **kwargs):
                 else:
                     noise[np.abs(x) > (1 - eta)] = 1
             d_err, d_eff, tau, _, _ = evaluate(
-                n=n, omega=omega, noise=noise, verbose=False, tilting=False, **kwargs
+                nb_pol=n, omega=omega, noise=noise, verbose=False, tilting=False, **kwargs
             )
             means[ii] = (means[ii] * i + d_err.mean()) / (i + 1)
             ses[ii] = (ses[ii] * i + d_err.std() / np.sqrt(d_err.size)) / (i + 1)
@@ -266,11 +266,8 @@ def gate_test(save=None, mode=2, filename="gate-costs.npz", **kwargs):
             # TODO parametrise this to work in batches so that I can run it in multiple processors
             sigmas_pol, shifts_pol, sigmas_sol, shifts_sol = np.meshgrid(sigmas, shifts, sigmas, shifts)
             means = np.zeros(sigmas_pol.size)
-            for ii, sigma_pol, shift_pol, sigma_sol, shift_sol in zip(np.arange(sigmas_pol.size),
-                                                                      sigmas_pol.flatten(), shifts_pol.flatten(),
-                                                                      sigmas_sol.flatten(), shifts_sol.flatten()):
-                d_err, d_eff, tau, _, _ = evaluate(sigma_pol=sigma_pol, shift_pol=shift_pol,
-                                                   sigma_sol=sigma_sol, shift_sol=shift_sol, verbose=False, **kwargs)
+            for ii, sigma, shift in zip(np.arange(sigmas.size), sigmas.flatten(), shifts.flatten()):
+                d_err, d_eff, tau, _, _ = evaluate(sigma=sigma, shift=shift, verbose=False, **kwargs)
                 means[ii] = d_err.mean()
                 se = np.rad2deg(d_err.std() / np.sqrt(d_err.size))
                 print r'S_p = % 3.2f, T_p = % 3.2f, S_s = % 3.2f, T_s = % 3.2f | Mean cost: %.2f +/- %.4f' % (
@@ -744,7 +741,6 @@ def elevation_test(**kwargs):
     tau = np.zeros_like(sun_ele)
     kwargs['sun_azi'] = kwargs.get('sun_azi', sun_azi)
     kwargs['tilting'] = kwargs.get('tilting', False)
-    kwargs['weighted'] = kwargs.get('weighted', True)
 
     plt.figure("elevation", figsize=(4.5, 3))
     for j, noise in enumerate(np.linspace(0, 2, 5)):
@@ -808,18 +804,18 @@ def elevation_test(**kwargs):
 
 
 if __name__ == "__main__":
-    # noise_test(mode=2, repeats=100)
+    # noise_test(mode=0, repeats=100)
     # nb_neurons_test(mode=2, tilting=True, weighted=False, noise=.0)
     # gate_ring(sigma=np.deg2rad(13), shift=np.deg2rad(40))
     # noise2disturbance_plot()
     # gate_test(tilting=True, mode=3, filename="gate-costs.npz")
-    # tilt_test(weighted=True, use_default=False)
+    # tilt_test()
     # tilt_ephem_test()
-    # structure_test(tilting=True, mode=3, n=60, omega=56, weighted=True)
+    structure_test(tilting=True, mode=3, n=60, omega=56, weighted=True)
     # for n_tb1 in xrange(8):
     #     heinze_experiment(n_tb1=n_tb1, sun_ele=np.deg2rad(91), absolute=False, uniform=False)
     # heinze_1f(eta=.5, uniform=True)
     # heinze_real(mode=2, n_tb1=None)
-    one_test(nb_pol=60, omega=56, sigma=np.deg2rad(13), shift=np.deg2rad(40), sun_azi=np.pi/3, sun_ele=np.pi/3,
-             snap=True, verbose=True, samples=1, tilting=False, noise=.0)
+    # one_test(nb_pol=60, omega=56, sigma=np.deg2rad(13), shift=np.deg2rad(40), sun_azi=np.pi/3, sun_ele=np.pi/3,
+    #          snap=True, verbose=True, samples=1, tilting=False, noise=.0)
     # elevation_test()

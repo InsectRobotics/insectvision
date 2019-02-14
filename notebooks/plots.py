@@ -334,3 +334,276 @@ def plot_snapshot(theta, phi, r_pol, r_sol, r_tcl, w_sol=None, w_tcl=None, phi_s
     plt.subplots_adjust(left=.07, bottom=.0, right=.93, top=.96)
 
     return plt
+
+
+def plot_accuracy(save=None, repeats=10, **kwargs):
+
+    plt.subplot(121)
+    sun_ele = np.linspace(0, np.pi/2, 91)
+    sun_azi = np.linspace(0, 2 * np.pi, 360, endpoint=False)
+    sun_ele = kwargs.get('sun_ele', sun_ele)
+    d_mean = np.zeros_like(sun_ele)
+    d_se = np.zeros_like(sun_ele)
+    tau = np.zeros_like(sun_ele)
+    kwargs['sun_azi'] = kwargs.get('sun_azi', sun_azi)
+    kwargs['tilting'] = kwargs.get('tilting', False)
+    kwargs['verbose'] = kwargs.get('verbose', False)
+
+    for j, noise in enumerate(np.linspace(0, 1, 5, endpoint=False)):
+        kwargs['noise'] = noise
+        for i, theta_s in enumerate(sun_ele):
+            kwargs['sun_ele'] = np.full_like(sun_azi, theta_s)
+            d_err, d_eff, t, a_ret, tb1 = evaluate(**kwargs)
+            d_mean[i] = np.nanmean(d_err)
+            d_se[i] = np.nanstd(d_err) / np.sqrt(np.sum(~np.isnan(d_err)))
+            tau[i] += np.nanmean(t)
+        plt.fill_between(np.rad2deg(sun_ele), d_mean - d_se, d_mean + d_se, facecolor='C%d' % j, alpha=.5)
+        plt.plot(np.rad2deg(sun_ele), d_mean, color='C%d' % j, label=r'$\eta = %.1f$' % noise)
+
+    tau /= 5
+    plt.plot(np.rad2deg(sun_ele), tau * 45, 'k--')
+    plt.legend()
+    plt.yticks([0, 10, 20, 90])
+    plt.ylim([0, 90])
+    plt.xticks([0, 30, 60, 90])
+    plt.xlim([0, 90])
+    plt.ylabel(r'MSE ($J_s$) [$^\circ$]')
+    plt.xlabel(r'sun elevation ($\theta_s$) [$^\circ$]')
+
+    ax1 = plt.subplot(122)
+    kwargs['sun_ele'] = None
+    kwargs['sun_azi'] = None
+    etas = np.linspace(0, 1, 21)
+    taus = np.zeros_like(etas)
+    means = np.zeros_like(etas)
+    ses = np.zeros_like(etas)
+    for i in xrange(repeats):
+        noise = np.ones(60, int)
+        x = np.argsort(np.absolute(np.random.randn(noise.size)))
+        for ii, eta in enumerate(etas):
+            noise[:] = 0
+            noise[x[:int(eta * float(noise.size))]] = 1
+            kwargs['noise'] = noise
+            d_err, d_eff, tau, _, _ = evaluate(**kwargs)
+            means[ii] = (means[ii] * i + d_err.mean()) / (i + 1)
+            ses[ii] = (ses[ii] * i + d_err.std() / np.sqrt(d_err.size)) / (i + 1)
+            taus[ii] = (taus[ii] * i + tau.mean()) / (i + 1)
+
+    # print " Disturbance         Cost        "
+    # print "---------------------------------"
+    # for i, eta in enumerate(etas):
+    #     print "   % 3.2f%%    % 2.2f +/- %.4f " % (eta * 100, means[i], ses[i])
+
+    ax1.fill_between(etas * 100, means-ses, means+ses, facecolor="grey")
+    ax1.plot(etas * 100, means, color="black", linestyle="-", label=r'$J_s$')
+    ax1.set_ylim([0, 90])
+    ax1.set_yticks([])
+    ax1.set_xlim([0, 100])
+    ax1.set_xlabel(r'disturbance ($\eta$) [%]')
+
+    ax2 = ax1.twinx()
+    ax2.plot(etas * 100, taus, color="black", linestyle="--", label=r'$\tau$')
+    ax2.set_ylim([0, 2])
+    ax2.set_yticks([0, .5, 1, 1.5, 2])
+    plt.legend()
+
+    if save:
+        plt.savefig(save)
+
+    return plt
+
+
+def plot_gate_optimisation(load="data/gate-costs.npz", save=None, **kwargs):
+
+    ax = plt.subplot(111, polar=True)
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+
+    sigmas = np.linspace(np.pi/180, np.pi/2, 90)
+    shifts = np.linspace(0, 2*np.pi, 91)
+
+    if load is not None:
+        data = np.load(load)
+        shifts, sigmas, means = data["shifts"], data["sigmas"], data["costs"]
+    else:
+        # TODO parametrise this to work in batches so that I can run it in multiple processors
+        sigmas, shifts = np.meshgrid(sigmas, shifts)
+        means = np.zeros(sigmas.size)
+        for ii, sigma, shift in zip(np.arange(sigmas.size), sigmas.flatten(), shifts.flatten()):
+            d_err, d_eff, tau, _, _ = evaluate(sigma=sigma, shift=shift, verbose=False, **kwargs)
+            means[ii] = d_err.mean()
+            print "Sigma: %d, Shift: %d, Cost: %.2f" % (np.rad2deg(sigma), np.rad2deg(shift), d_err.mean())
+
+        means = means.reshape(shifts.shape)
+        np.savez_compressed(save, shifts=shifts, sigmas=sigmas, costs=means)
+
+    ii = np.argmin(means.flatten())
+    sigma_min = sigmas.flatten()[ii]
+    shift_min = shifts.flatten()[ii]
+    means_min = means.flatten()[ii]
+    print 'Minimum cost (%.2f) for Sigma = %.2f, Shift = %.2f' % (
+        means_min, np.rad2deg(sigma_min), np.rad2deg(shift_min))
+
+    with plt.rc_context({'ytick.color': 'white'}):
+        plt.pcolormesh(shifts, sigmas, means, cmap="Reds", vmin=0, vmax=90)
+        plt.scatter(shift_min, sigma_min, s=20, c='yellowgreen', marker='o')
+        plt.yticks([0, np.pi/6, np.pi/3, np.pi/2],
+                   [r"$0$", r"$30^\circ$", r"$60^\circ$", r"$90^\circ$"])
+        plt.xticks(np.linspace(0, 2*np.pi, 8, endpoint=False),
+                   [r'$0^\circ$', r'$45^\circ$', r'$90^\circ$', r'$135^\circ$',
+                    r'$180^\circ$', r'$-135^\circ$', r'$-90^\circ$', r'$-45^\circ$'])
+        plt.ylim([0, np.pi/2])
+        ax.grid(alpha=0.2)
+
+    return plt
+
+
+def plot_gate_cost(samples=500, **kwargs):
+    d_err, d_eff, tau, _, _ = evaluate(samples=samples, tilting=True, **kwargs)
+
+    tau = np.rad2deg(tau)
+    d_mean = np.nanmean(d_err)
+    d_se = d_err.std() / np.sqrt(d_err.size)
+    print "Tilt             overall              0 deg              30 deg             60 deg     "
+    print "---------------------------------------------------------------------------------------"
+    print "Mean cost    %.2f +/- %.4f" % (d_mean, d_se),
+
+    if samples == 1000:
+        samples /= 2
+    theta_s, phi_s = fibonacci_sphere(samples=samples, fov=161)
+    phi_s = phi_s[theta_s <= np.pi / 2]
+    theta_s = theta_s[theta_s <= np.pi / 2]
+
+    d_00 = d_err[:, 0]
+    d_30 = np.nanmean(d_err[:, 1:9], axis=1)
+    d_60 = np.nanmean(d_err[:, 9:], axis=1)
+    print "   %.2f +/- %.4f" % (np.nanmean(d_00), np.nanstd(d_00) / d_00.size),
+    print "   %.2f +/- %.4f" % (np.nanmean(d_err[:, 1:9]), np.nanstd(d_err[:, 1:9]) / d_err[:, 1:9].size),
+    print "   %.2f +/- %.4f" % (np.nanmean(d_err[:, 9:]), np.nanstd(d_err[:, 9:]) / d_err[:, 9:].size)
+
+    plt.figure("Tilts", figsize=(10, 3))
+    for i, ang, dd in zip(range(3), [0, np.pi/6, np.pi/3], [d_00, d_30, d_60]):
+        ax = plt.subplot2grid((1, 10), (0, i * 3), colspan=3, polar=True)
+        ax.set_theta_zero_location("N")
+        ax.set_theta_direction(-1)
+        plt.scatter(phi_s, np.rad2deg(theta_s), marker=".", c=dd, cmap="Reds", vmin=0, vmax=90)
+        plt.scatter(np.pi, np.rad2deg(ang), marker="o", c="yellowgreen", edgecolors="black")
+        plt.text(-np.deg2rad(50), 145, ["A", "B", "C"][i], fontsize=12)
+        plt.axis("off")
+    plt.subplot2grid((3, 10), (1, 9))
+    plt.imshow(np.array([np.arange(0, np.pi / 2, np.pi / 180)] * 10).T, cmap="Reds")
+    plt.xticks([])
+    plt.yticks([0, 45, 89], [r"0", r"$\frac{\pi}{4}$", r"$\geq\frac{\pi}{2}$"])
+
+    return plt
+
+
+def plot_structure_optimisation(save=None, mode=0, **kwargs):
+        print "Running structure test:", kwargs
+
+        plt.figure("Structure", figsize=(10, 5))
+
+        ns = np.linspace(0, 360, 91)
+        ns[0] = 1
+        omegas = np.linspace(1, 180, 180)
+        # ns = np.array([4, 12, 60, 112, 176, 272, 368, 840])
+        # omegas = np.array([14, 30, 60, 90, 120, 150, 180])
+
+        filename = "structure-costs.npz"
+        if mode < 2:
+            plt.subplot(121)
+            means = np.zeros_like(ns)
+            ses = np.zeros_like(ns)
+            n_default = kwargs.pop('n', 360)
+            omega_default = kwargs.pop('omega', 56)
+            for ii, n in enumerate(ns.astype(int)):
+                d_err, d_eff, tau, _, _ = evaluate(n=n, omega=omega_default, verbose=False, **kwargs)
+                means[ii] = np.mean(d_err)
+                ses[ii] = d_err.std() / np.sqrt(d_err.size)
+                print 'N = % 3d, Omega = %.2f | Mean cost: %.2f +/- %.4f' % (n, omega_default, means[ii], ses[ii])
+
+            means = means.reshape(ns.shape)
+
+            plt.fill_between(ns, means - ses, means + ses, facecolor="grey")
+            plt.plot(ns, means, color="black", label=r'$n$')
+            plt.ylim([0, 60])
+            plt.xlim([1, 360])
+            plt.yticks([0, 15, 30, 45, 60], [r'%d$^\circ$' % o for o in [0, 15, 30, 45, 60]])
+            plt.xticks([4, 12, 60, 112, 176, 272, 360])
+            plt.xlabel(r'units ($n$)')
+            plt.ylabel(r'MSE ($^\circ$)')
+
+            plt.subplot(122)
+            means = np.zeros_like(omegas)
+            ses = np.zeros_like(omegas)
+            for ii, omega in enumerate(omegas):
+                d_err, d_eff, tau, _, _ = evaluate(n=n_default, omega=omega, verbose=False, **kwargs)
+                means[ii] = np.mean(d_err)
+                ses[ii] = d_err.std() / np.sqrt(d_err.size)
+                print 'N = % 3d, Omega = %.2f | Mean cost: %.2f +/- %.4f' % (n_default, omega, means[ii], ses[ii])
+
+            means = means.reshape(omegas.shape)
+
+            plt.fill_between(omegas, means - ses, means + ses, facecolor="grey", alpha=.5)
+            plt.plot(omegas, means, color="black", label=r'$\omega$')
+            plt.ylim([0, 60])
+            plt.xlim([0, 180])
+            plt.yticks([0, 15, 30, 45, 60], [r'%d$^\circ$' % o for o in [0, 15, 30, 45, 60]])
+            plt.xticks(np.linspace(0, 180, 7, endpoint=True),
+                       [r'%d$^\circ$' % o for o in np.linspace(0, 180, 7, endpoint=True)])
+            plt.xlabel(r'receptive field ($\omega$)')
+            plt.ylabel(r'MSE ($^\circ$)')
+            # plt.legend()
+        else:
+            ax = plt.subplot(111, polar=True)
+            ax.set_theta_zero_location("N")
+            ax.set_theta_direction(-1)
+
+            if mode > 2:
+                data = np.load(filename)
+                ns, omegas, means = data["ns"], data["omegas"], data["costs"]
+            else:
+                ns, omegas = np.meshgrid(ns, omegas)
+                means = np.zeros(omegas.size)
+                for ii, omega, n in zip(np.arange(omegas.size), omegas.flatten(), ns.flatten()):
+                    kwargs["n"] = n
+                    kwargs["omega"] = omega
+                    d_err, d_eff, tau, _, _ = evaluate(verbose=False, **kwargs)
+                    means[ii] = np.mean(d_err)
+                    se = d_err.std() / np.sqrt(d_err.size)
+                    print 'N = % 3d, Omega = %.2f | Mean cost: %.2f +/- %.4f' % (n, omega, means[ii], se)
+
+                means = means.reshape(omegas.shape)
+                np.savez_compressed(filename, omegas=omegas, ns=ns, costs=means)
+
+            ii = np.nanargmin(means, axis=0)
+            jj = np.nanargmin(means[ii, np.arange(91)])
+            omega_min = omegas[ii, np.arange(91)]
+            n_min = ns[ii, np.arange(91)]
+            means_min = means[ii, np.arange(91)]
+            print means_min
+            print n_min
+            print omega_min
+            print 'Minimum cost (%.2f) for N = %d, Omega = %.2f' % (means_min[jj], n_min[jj], omega_min[jj])
+            print 'Mean omega %.2f +/- %.4f' % (omega_min.mean(), omega_min.std() / np.sqrt(omega_min.size))
+
+            with plt.rc_context({'ytick.color': 'white'}):
+                plt.pcolormesh(np.deg2rad(omegas), ns, means, cmap="Reds", vmin=0, vmax=90)
+                # plt.scatter(np.deg2rad(omega_min), n_min, s=20, c='yellowgreen', marker='o')
+                plt.plot(np.deg2rad(omega_min), n_min, 'g-')
+                plt.yticks([4, 12, 60, 112, 176, 272, 360], [""] * 7)
+                plt.xticks(np.deg2rad([14, 30, 60, 90, 120, 150, 180]))
+                plt.ylim([4, 360])
+                plt.xlim([0, 180])
+                ax.grid(alpha=0.2)
+
+            if save:
+                plt.savefig(save)
+
+        return plt
+
+
+if __name__ == "__main__":
+    # plot_accuracy().show()
+    plot_gate_optimisation(save="data/gate-costs-2.npz", load=None)
+    # plot_structure_optimisation(tilting=True, mode=3, n=60, omega=56, weighted=True).show()

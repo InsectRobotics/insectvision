@@ -177,7 +177,7 @@ def evaluate(nb_pol=60, omega=56, sigma=np.deg2rad(13), shift=np.deg2rad(40),
             # decode response - FFT
             R = r_tcl.dot(np.exp(-np.arange(nb_tcl) * (0. + 1.j) * 2. * np.pi / float(nb_tcl)))
             a_pred = (np.pi - np.arctan2(R.imag, R.real)) % (2. * np.pi) - np.pi  # sun azimuth (prediction)
-            tau_pred = np.absolute(R)  # certainty of prediction
+            tau_pred = 2. * np.absolute(R)  # certainty of prediction
 
             d[i, j] = np.absolute(azidist(np.array([e, a]), np.array([0., a_pred])))
             t[i, j] = tau_pred
