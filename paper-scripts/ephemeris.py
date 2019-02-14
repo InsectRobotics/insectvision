@@ -46,10 +46,10 @@ if __name__ == "__main__":
 
         ele = np.rad2deg(ele).flatten()
         # res = np.array(res).flatten() - np.pi/2  # Min: 0.02, Max: 2.04; Min: 18.22, Max: 66.91
-        res = (np.array(res).flatten() - 1.06) * 7 / 4
-        # res = (np.array(res).flatten() - 1) * 35 / 20
+        # res = (np.array(res).flatten() - 1.06) * 7 / 4
+        # res = (np.array(res).flatten() - 1) * 2
         # res = (np.array(res).flatten() - 2.12) * 7 / 8
-        # res = np.array(res)
+        res = np.clip(res, 0, 2)
         ele_pred = 26 * (1 - 2 * np.arcsin(1 - res) / np.pi) + 15  # + np.random.randn(res.size)
 
         plt.figure("tau2ele", figsize=(5, 5))

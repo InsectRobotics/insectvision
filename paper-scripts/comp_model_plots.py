@@ -223,8 +223,8 @@ def gate_test(save=None, mode=2, filename="gate-costs.npz", **kwargs):
     ax.set_theta_zero_location("N")
     ax.set_theta_direction(-1)
 
-    sigmas = np.linspace(np.pi/90, np.pi/2, 45)
-    shifts = np.linspace(0, 2*np.pi, 91)
+    sigmas = np.linspace(np.pi/90, np.pi/2, 90)
+    shifts = np.linspace(0, 2*np.pi, 361)
 
     if mode < 2:
         means = np.zeros_like(sigmas)
@@ -264,18 +264,17 @@ def gate_test(save=None, mode=2, filename="gate-costs.npz", **kwargs):
             shifts, sigmas, means = data["shifts"], data["sigmas"], data["costs"]
         else:
             # TODO parametrise this to work in batches so that I can run it in multiple processors
-            sigmas_pol, shifts_pol, sigmas_sol, shifts_sol = np.meshgrid(sigmas, shifts, sigmas, shifts)
-            means = np.zeros(sigmas_pol.size)
+            sigmas, shifts = np.meshgrid(sigmas, shifts)
+            means = np.zeros(sigmas.size)
             for ii, sigma, shift in zip(np.arange(sigmas.size), sigmas.flatten(), shifts.flatten()):
                 d_err, d_eff, tau, _, _ = evaluate(sigma=sigma, shift=shift, verbose=False, **kwargs)
                 means[ii] = d_err.mean()
                 se = np.rad2deg(d_err.std() / np.sqrt(d_err.size))
-                print r'S_p = % 3.2f, T_p = % 3.2f, S_s = % 3.2f, T_s = % 3.2f | Mean cost: %.2f +/- %.4f' % (
-                    np.rad2deg(sigma_pol), np.rad2deg(shift_pol),
-                    np.rad2deg(sigma_sol), np.rad2deg(shift_sol), means[ii], se)
+                print r'S = % 3.2f, T = % 3.2f | Mean cost: %.2f +/- %.4f' % (
+                    np.rad2deg(sigma), np.rad2deg(shift), means[ii], se)
 
-            means = means.reshape(shifts_pol.shape)
-            np.savez_compressed(filename, shifts=shifts_pol, sigmas=sigmas_pol, costs=means)
+            means = means.reshape(shifts.shape)
+            np.savez_compressed(filename, shifts=shifts, sigmas=sigmas, costs=means)
 
         ii = np.argmin(means.flatten())
         sigma_min = sigmas.flatten()[ii]
@@ -808,10 +807,10 @@ if __name__ == "__main__":
     # nb_neurons_test(mode=2, tilting=True, weighted=False, noise=.0)
     # gate_ring(sigma=np.deg2rad(13), shift=np.deg2rad(40))
     # noise2disturbance_plot()
-    # gate_test(tilting=True, mode=3, filename="gate-costs.npz")
+    gate_test(tilting=True, mode=2, filename="gate-costs-2.npz")
     # tilt_test()
     # tilt_ephem_test()
-    structure_test(tilting=True, mode=3, n=60, omega=56, weighted=True)
+    # structure_test(tilting=True, mode=3, n=60, omega=56, weighted=True)
     # for n_tb1 in xrange(8):
     #     heinze_experiment(n_tb1=n_tb1, sun_ele=np.deg2rad(91), absolute=False, uniform=False)
     # heinze_1f(eta=.5, uniform=True)
