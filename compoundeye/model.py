@@ -128,7 +128,7 @@ class DRA(CompoundEye):
         :param rho: acceptance angle (degrees)
         :type rho: float, np.ndarray
         """
-        super(DRA, self).__init__(n=n, omega=omega, rho=rho, nb_pr=nb_pr, theta_c=0., phi_c=0., name=name)
+        super(DRA, self).__init__(n=n, omega=omega, rho=rho, nb_pr=nb_pr, theta_c=theta_c, phi_c=phi_c, name=name)
 
         # set as default the desert ants' ommatidia set-up
         self.rhabdom = np.array([[spectrum["uv"], spectrum["uv"], spectrum["w"], spectrum["uv"],
@@ -188,8 +188,6 @@ def visualise(my_sky, y):
                         r'$180^\circ$ (S)', r'$-135^\circ$ (SW)', r'$-90^\circ$ (W)', r'$-45^\circ$ (NW)'])
 
     plt.show()
-
-
 
 
 if __name__ == "__main_2__":

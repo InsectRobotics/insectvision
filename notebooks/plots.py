@@ -1,13 +1,14 @@
 from compoundeye.geometry import fibonacci_sphere
 from compoundeye.evaluation import evaluate
 
-from ephem import Sun
+from environment import Sun
 from datetime import datetime, timedelta
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
-def plot_sky(phi, theta, y, p, a, noise=0.):
+def plot_sky(phi, theta, y, p, a):
     ax = plt.subplot(131, polar=True)
     ax.scatter(phi, theta, s=10, marker='.', c=y, cmap="Blues_r", vmin=-0., vmax=7.)
     ax.set_theta_zero_location("N")
@@ -197,8 +198,6 @@ def plot_ephemeris(obs, dt=10):
     print "Error: %.4f +/- %.4f" % (error.mean(), error.std() / np.sqrt(len(error))),
     print "| N = %d" % len(error)
 
-    plt.figure(figsize=(10, 10))
-
     plt.subplot(221)
     plt.scatter(azi, ele, c=azi_diff, cmap='Reds', marker='.')
     plt.ylabel(r'$\theta_s (\circ)$')
@@ -334,7 +333,7 @@ def plot_snapshot(theta, phi, r_pol, r_sol, r_tcl, w_sol=None, w_tcl=None, phi_s
     return plt
 
 
-def plot_accuracy(save=None, repeats=10, **kwargs):
+def plot_accuracy(save=None, repeats=10, verbose=False, **kwargs):
 
     plt.subplot(121)
     sun_ele = np.linspace(0, np.pi/2, 91)
@@ -354,12 +353,11 @@ def plot_accuracy(save=None, repeats=10, **kwargs):
             d_err, d_eff, t, a_ret, tb1 = evaluate(**kwargs)
             d_mean[i] = np.nanmean(d_err)
             d_se[i] = np.nanstd(d_err) / np.sqrt(np.sum(~np.isnan(d_err)))
-            tau[i] += np.nanmean(t)
+            tau[i] += np.nanmean(t) / 5
         plt.fill_between(np.rad2deg(sun_ele), d_mean - d_se, d_mean + d_se, facecolor='C%d' % j, alpha=.5)
         plt.plot(np.rad2deg(sun_ele), d_mean, color='C%d' % j, label=r'$\eta = %.1f$' % noise)
 
-    tau /= 5
-    plt.plot(np.rad2deg(sun_ele), tau * 45, 'k--')
+    plt.plot(np.rad2deg(sun_ele), tau * 90, 'k--')
     plt.legend()
     plt.yticks([0, 30, 60, 90])
     plt.ylim([0, 90])
@@ -387,10 +385,11 @@ def plot_accuracy(save=None, repeats=10, **kwargs):
             ses[ii] = (ses[ii] * i + d_err.std() / np.sqrt(d_err.size)) / (i + 1)
             taus[ii] = (taus[ii] * i + tau.mean()) / (i + 1)
 
-    # print " Disturbance         Cost        "
-    # print "---------------------------------"
-    # for i, eta in enumerate(etas):
-    #     print "   % 3.2f%%    % 2.2f +/- %.4f " % (eta * 100, means[i], ses[i])
+    if verbose:
+        print " Disturbance         Cost        "
+        print "---------------------------------"
+        for i, eta in enumerate(etas):
+            print "   % 3.2f%%    % 2.2f +/- %.4f " % (eta * 100, means[i], ses[i])
 
     ax1.fill_between(etas * 100, means-ses, means+ses, facecolor="grey")
     ax1.plot(etas * 100, means, color="black", linestyle="-", label=r'$J_s$')
@@ -400,7 +399,7 @@ def plot_accuracy(save=None, repeats=10, **kwargs):
     ax1.set_xlabel(r'disturbance ($\eta$) [%]')
 
     ax2 = ax1.twinx()
-    ax2.plot(etas * 100, taus, color="black", linestyle="--", label=r'$\tau$')
+    ax2.plot(etas * 100, taus * 2, color="black", linestyle="--", label=r'$\tau$')
     ax2.set_ylim([0, 2])
     ax2.set_yticks([0, .5, 1, 1.5, 2])
     plt.legend()
@@ -478,7 +477,6 @@ def plot_gate_cost(samples=500, **kwargs):
     print "   %.2f +/- %.4f" % (np.nanmean(d_err[:, 1:9]), np.nanstd(d_err[:, 1:9]) / d_err[:, 1:9].size),
     print "   %.2f +/- %.4f" % (np.nanmean(d_err[:, 9:]), np.nanstd(d_err[:, 9:]) / d_err[:, 9:].size)
 
-    plt.figure("Tilts", figsize=(10, 3))
     for i, ang, dd in zip(range(3), [0, np.pi/6, np.pi/3], [d_00, d_30, d_60]):
         ax = plt.subplot2grid((1, 10), (0, i * 3), colspan=3, polar=True)
         ax.set_theta_zero_location("N")
@@ -496,9 +494,6 @@ def plot_gate_cost(samples=500, **kwargs):
 
 
 def plot_structure_optimisation(load="data/structure-costs.npz", save=None, **kwargs):
-
-        plt.figure("Structure", figsize=(10, 5))
-
         ns = np.linspace(0, 360, 91)
         ns[0] = 1
         omegas = np.linspace(1, 180, 180)
@@ -590,12 +585,42 @@ def plot_structure_optimisation(load="data/structure-costs.npz", save=None, **kw
         return plt
 
 
-def plot_disturbance():
+def plot_disturbance(phi, theta, r_pol, subplot=111):
+    ax = plt.subplot(subplot, polar=True)
+    ax.scatter(phi, theta, s=100, marker='.', c=r_pol, cmap="coolwarm", vmin=-.6, vmax=.6)
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+    ax.set_ylim([0, np.deg2rad(30)])
+    plt.yticks([])
+    plt.xticks([])
 
+    return plt
+
+
+def plot_terrain(terrain, max_altitude=.5):
+    ax = plt.gca()
+    im = ax.imshow(terrain, cmap="PRGn", extent=[0, 10, 0, 10], vmin=-max_altitude, vmax=max_altitude)
+    # create an axes on the right side of ax. The width of cax will be 5%
+    # of ax and the padding between cax and ax will be fixed at 0.05 inch.
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="2%", pad=0.05)
+
+    plt.colorbar(im, cax=cax)
+    return plt
+
+
+def plot_route(opath, ipath, subplot=111):
+    plt.subplot(subplot)
+    plt.plot(opath[:, 0], opath[:, 1], 'r-')
+    plt.plot(ipath[:, 0], ipath[:, 1], 'k--')
+    plt.xlim([4, 7])
+    plt.ylim([-1, 9])
+
+    return plt
 
 
 if __name__ == "__main__":
-    plot_res2ele().show()
+    # plot_res2ele().show()
     # plot_accuracy().show()
     # plot_gate_optimisation(save="data/gate-costs-2.npz", load=None)
-    # plot_structure_optimisation(tilting=True, mode=3, n=60, omega=56, weighted=True).show()
+    plot_structure_optimisation(tilting=True, mode=3, n=60, omega=56, weighted=True).show()
