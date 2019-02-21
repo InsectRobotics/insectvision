@@ -544,7 +544,7 @@ def heinze_1f(eta=.5, uniform=False):
     # phi_tb1 = np.pi / 2 + np.linspace(0, np.pi, 8)
 
     sun_azi = np.linspace(-np.pi, np.pi, 36, endpoint=False)
-    sun_ele = np.full_like(sun_azi, np.pi/2)
+    sun_ele = np.full_like(sun_azi, np.pi/3)
     # phi_tb1 = np.linspace(0., 2 * np.pi, 8, endpoint=False)  # TB1 preference angles
     tb1_ids = np.empty((0, sun_azi.shape[0], 8), dtype=sun_azi.dtype)
     tb1s = np.empty((0, sun_azi.shape[0], 8), dtype=sun_azi.dtype)
@@ -562,14 +562,14 @@ def heinze_1f(eta=.5, uniform=False):
                                            sun_azi=sun_azi, sun_ele=sun_ele, tilting=False, noise=0.)
 
     tb1 = np.transpose(r_tb1, axes=(1, 0, 2)) * 1e+15
+    phi_mean = circmean(phis, axis=1, weights=np.power(tb1s, 50))
     if uniform:
-        phi_mean = circmean(phis, axis=1, weights=np.power(tb1s, 50))
 
-        for i in xrange(phi_mean.shape[1]):
-            d_00 = np.absolute((phi_mean[:, i] - phi_tb1[-1 - i] + np.pi) % (2 * np.pi) - np.pi)
-            d_pi = np.absolute((phi_mean[:, i] - phi_tb1[-1 - i]) % (2 * np.pi) - np.pi)
-            phi_mean[d_00 > d_pi, i] += np.pi
-
+        # for i in xrange(phi_mean.shape[1]):
+        #     d_00 = np.absolute((phi_mean[:, i] - phi_tb1[-1 - i] + np.pi) % (2 * np.pi) - np.pi)
+        #     d_pi = np.absolute((phi_mean[:, i] - phi_tb1[-1 - i]) % (2 * np.pi) - np.pi)
+        #     phi_mean[d_00 > d_pi, i] += np.pi
+        #
         phi_max = circmean(phis[0][np.newaxis], axis=1, weights=np.power(tb1, 50)).flatten()
         for i, phi_max_i in enumerate(phi_max):
             d_00 = np.absolute((phi_max_i - phi_tb1[-1 - i] + np.pi) % (2 * np.pi) - np.pi)
@@ -577,7 +577,6 @@ def heinze_1f(eta=.5, uniform=False):
             if d_00 > d_pi:
                 phi_max[i] += np.pi
     else:
-        phi_mean = circmean(phis, axis=1, weights=np.power(tb1s, 50))
         phi_max = circmean(phi_mean, axis=0)
 
     x, y = [], []
@@ -807,13 +806,13 @@ if __name__ == "__main__":
     # nb_neurons_test(mode=2, tilting=True, weighted=False, noise=.0)
     # gate_ring(sigma=np.deg2rad(13), shift=np.deg2rad(40))
     # noise2disturbance_plot()
-    gate_test(tilting=True, mode=2, filename="gate-costs-2.npz")
+    # gate_test(tilting=True, mode=2, filename="gate-costs-2.npz")
     # tilt_test()
     # tilt_ephem_test()
     # structure_test(tilting=True, mode=3, n=60, omega=56, weighted=True)
     # for n_tb1 in xrange(8):
     #     heinze_experiment(n_tb1=n_tb1, sun_ele=np.deg2rad(91), absolute=False, uniform=False)
-    # heinze_1f(eta=.5, uniform=True)
+    heinze_1f(eta=.5, uniform=True)
     # heinze_real(mode=2, n_tb1=None)
     # one_test(nb_pol=60, omega=56, sigma=np.deg2rad(13), shift=np.deg2rad(40), sun_azi=np.pi/3, sun_ele=np.pi/3,
     #          snap=True, verbose=True, samples=1, tilting=False, noise=.0)

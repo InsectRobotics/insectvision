@@ -10,9 +10,35 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+# create sun
 sun = Sun()
-seville_obs = get_seville_observer()
+# create sky
 sky = Sky()
+# create observer
+seville_obs = get_seville_observer()
+
+# create terrain
+tau = .6
+x_terrain = np.linspace(0, 10, 1001, endpoint=True)
+y_terrain = np.linspace(0, 10, 1001, endpoint=True)
+x_terrain, y_terrain = np.meshgrid(x_terrain, y_terrain)
+try:
+    z_terrain = np.load("../data/terrain-%.2f.npz" % tau)["terrain"] * 1000
+except IOError:
+    z_terrain = np.random.randn(*x_terrain.shape) / 50
+    terrain = np.zeros_like(z_terrain)
+
+    for i in xrange(terrain.shape[0]):
+        print "%04d / %04d" % (i + 1, terrain.shape[0]),
+        for j in xrange(terrain.shape[1]):
+            k = np.sqrt(np.square(x_terrain[i, j] - x_terrain) + np.square(y_terrain[i, j] - y_terrain)) < tau
+            terrain[i, j] = z_terrain[k].mean()
+            if j % 20 == 0:
+                print ".",
+        print ""
+
+    np.savez_compressed("terrain-%.2f.npz" % tau, terrain=terrain)
+    z_terrain = terrain
 
 
 def encode(theta, phi, Y, P, A, theta_t=0., phi_t=0., nb_tb1=8, sigma=np.deg2rad(13), shift=np.deg2rad(40)):
@@ -97,8 +123,12 @@ stats = {
     "tau": []
 }
 
+terrain = z_terrain.copy()
 for max_altitude in [.0, .1, .2, .3, .4, .5]:
+    z_terrain = terrain * max_altitude
+    print "Maximum altitude has been set to %.2f m (variance [-%.2f m, %.2f m])" % tuple([max_altitude] * 3)
     for ni, noise in enumerate([0.0, 0.2, 0.4, 0.6, 0.8, .97]):
+        print "Disturbance level has been set to %.2f %%" % noise
 
         # stats
         d_x = []  # logarithmic distance
@@ -106,6 +136,7 @@ for max_altitude in [.0, .1, .2, .3, .4, .5]:
         tau = []  # tortuosity
         ri = 0
 
+        print "Routes: ",
         for route in routes[::2]:
             net = CX(noise=0., pontin=False)
             net.update = True
@@ -189,5 +220,7 @@ for max_altitude in [.0, .1, .2, .3, .4, .5]:
             stats["d_x"].append(d_x)
             stats["d_c"].append(d_c)
             stats["tau"].append(tau)
+            print ".",
+        print ""
 
-np.savez_compressed("data/pi-stats.npz", **stats)
+np.savez_compressed("../data/pi-stats.npz", **stats)

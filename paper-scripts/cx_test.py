@@ -20,7 +20,7 @@ x_terrain = np.linspace(0, 10, 1001, endpoint=True)
 y_terrain = np.linspace(0, 10, 1001, endpoint=True)
 x_terrain, y_terrain = np.meshgrid(x_terrain, y_terrain)
 try:
-    z_terrain = np.load("terrain-%.2f.npz" % 0.6)["terrain"] * 500
+    z_terrain = np.load("../data/terrain-%.2f.npz" % 0.6)["terrain"] * 400
 except IOError:
     z_terrain = np.random.randn(*x_terrain.shape) / 50
 
@@ -78,7 +78,7 @@ def get_3d_direction(x, y, yaw, tau=.06):
     return theta_p - np.pi/2, phi_p - yaw
 
 
-if __name__ == "__main_2__":
+if __name__ == "__main__":
     # sensor design
     n = 60
     omega = 56
@@ -129,6 +129,7 @@ if __name__ == "__main_2__":
             v = np.zeros(2)
             tb1 = []
             # print np.rad2deg(phi_s)
+            TC = 0.
 
             # plt.figure("yaws")
             for _, _, _, yaw in oroute:
@@ -151,6 +152,7 @@ if __name__ == "__main_2__":
                 v = np.array([np.sin(yaw), np.cos(yaw)]) * route.dx
                 opath.append([opath[-1][0] + v[0], opath[-1][1] + v[1], yaw])
                 tb1.append(net.tb1)
+                TC += route.dx
             # plt.xlabel("org")
             # plt.ylabel("com")
             # plt.xlim([0, 2*np.pi])
@@ -162,6 +164,8 @@ if __name__ == "__main_2__":
             # plt.figure(figsize=(10, 3))
             # plt.imshow(np.array(tb1).T)
             # plt.show()
+
+            print "TC (outward):", TC
 
             # inward route
             ipath = [[opath[-1][0], opath[-1][1], opath[-1][2]]]
@@ -201,6 +205,7 @@ if __name__ == "__main_2__":
                 if TC == 0. and len(d_x[-1]) > 50 and d_x[-1][-1] > d_x[-1][-2]:
                     TC = C
 
+            print "TC (inward):", TC
             ipath = np.array(ipath)
             d_x[-1] = np.array(d_x[-1]) / SL * 100
             d_c[-1] = np.array(d_c[-1]) / TC * 100
@@ -265,7 +270,7 @@ if __name__ == "__main__":
             print ""
 
         print terrain.min(), terrain.max()
-        np.savez_compressed("terrain-%.2f.npz" % tau, terrain=terrain)
+        np.savez_compressed("../data/terrain-%.2f.npz" % tau, terrain=terrain)
 
     plt.figure("terrain", figsize=(5, 5))
     plt.imshow(terrain, cmap="PRGn", extent=[0, 10, 0, 10], vmin=-.5, vmax=.5)

@@ -3,9 +3,10 @@ from compoundeye.evaluation import evaluate
 
 from environment import Sun
 from datetime import datetime, timedelta
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from astropy.stats import circmean
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def plot_sky(phi, theta, y, p, a):
@@ -335,7 +336,8 @@ def plot_snapshot(theta, phi, r_pol, r_sol, r_tcl, w_sol=None, w_tcl=None, phi_s
 
 def plot_accuracy(save=None, repeats=10, verbose=False, **kwargs):
 
-    plt.subplot(121)
+    ax1 = plt.subplot(132)
+    ax3 = plt.subplot(131)
     sun_ele = np.linspace(0, np.pi/2, 91)
     sun_azi = np.linspace(0, 2 * np.pi, 360, endpoint=False)
     sun_ele = kwargs.get('sun_ele', sun_ele)
@@ -353,20 +355,36 @@ def plot_accuracy(save=None, repeats=10, verbose=False, **kwargs):
             d_err, d_eff, t, a_ret, tb1 = evaluate(**kwargs)
             d_mean[i] = np.nanmean(d_err)
             d_se[i] = np.nanstd(d_err) / np.sqrt(np.sum(~np.isnan(d_err)))
-            tau[i] += np.nanmean(t) / 5
-        plt.fill_between(np.rad2deg(sun_ele), d_mean - d_se, d_mean + d_se, facecolor='C%d' % j, alpha=.5)
-        plt.plot(np.rad2deg(sun_ele), d_mean, color='C%d' % j, label=r'$\eta = %.1f$' % noise)
+            tau[i] += np.nanmean(np.clip(t, 0., 2.)) / 5.
+            # print tau
+            # if j == 0:
+            #     tau[i] = np.nanmean(t)
+        ax1.fill_between(np.rad2deg(sun_ele), d_mean - d_se, d_mean + d_se, facecolor='C%d' % j, alpha=.5)
+        ax1.plot(np.rad2deg(sun_ele), d_mean, color='C%d' % j, label=r'$\eta = %.1f$' % noise)
+        ax3.fill_between(np.rad2deg(sun_ele), d_mean - d_se, d_mean + d_se, facecolor='C%d' % j, alpha=.5)
+        ax3.plot(np.rad2deg(sun_ele), d_mean, color='C%d' % j, label=r'$\eta = %.1f$' % noise)
 
-    plt.plot(np.rad2deg(sun_ele), tau * 90, 'k--')
     plt.legend()
-    plt.yticks([0, 30, 60, 90])
-    plt.ylim([0, 90])
-    plt.xticks([0, 30, 60, 90])
-    plt.xlim([0, 90])
-    plt.ylabel(r'MSE ($J_s$) [$^\circ$]')
-    plt.xlabel(r'sun elevation ($\theta_s$) [$^\circ$]')
+    ax1.set_yticks([0, 10, 20, 30])
+    ax1.set_ylim([0, 30])
+    ax1.set_xticks([0, 30, 60, 90])
+    ax1.set_xlim([0, 90])
+    ax1.set_ylabel(r'MSE ($J_s$) [$^\circ$]')
+    ax1.set_xlabel(r'sun elevation ($\theta_s$) [$^\circ$]')
 
-    ax1 = plt.subplot(122)
+    ax2 = ax1.twinx()
+    ax2.plot(np.rad2deg(sun_ele), tau, 'k--')
+    ax2.set_ylim([0, 1.5])
+    ax2.set_yticks([0, .5, 1, 1.5])
+
+    ax3.set_yticks([0, .03, .06, .09])
+    ax3.set_ylim([0, .09])
+    ax3.set_xticks([0, 30, 60, 90])
+    ax3.set_xlim([0, 90])
+    ax3.set_ylabel("")
+    ax3.set_xlabel(r'sun elevation ($\theta_s$) [$^\circ$]')
+
+    ax1 = plt.subplot(133)
     kwargs['sun_ele'] = None
     kwargs['sun_azi'] = None
     etas = np.linspace(0, 1, 21)
@@ -383,7 +401,7 @@ def plot_accuracy(save=None, repeats=10, verbose=False, **kwargs):
             d_err, d_eff, tau, _, _ = evaluate(**kwargs)
             means[ii] = (means[ii] * i + d_err.mean()) / (i + 1)
             ses[ii] = (ses[ii] * i + d_err.std() / np.sqrt(d_err.size)) / (i + 1)
-            taus[ii] = (taus[ii] * i + tau.mean()) / (i + 1)
+            taus[ii] = (taus[ii] * i + np.clip(tau, 0, 2).mean()) / (i + 1)
 
     if verbose:
         print " Disturbance         Cost        "
@@ -393,15 +411,15 @@ def plot_accuracy(save=None, repeats=10, verbose=False, **kwargs):
 
     ax1.fill_between(etas * 100, means-ses, means+ses, facecolor="grey")
     ax1.plot(etas * 100, means, color="black", linestyle="-", label=r'$J_s$')
-    ax1.set_ylim([0, 90])
+    ax1.set_ylim([0, 30])
     ax1.set_yticks([])
     ax1.set_xlim([0, 100])
     ax1.set_xlabel(r'disturbance ($\eta$) [%]')
 
     ax2 = ax1.twinx()
-    ax2.plot(etas * 100, taus * 2, color="black", linestyle="--", label=r'$\tau$')
-    ax2.set_ylim([0, 2])
-    ax2.set_yticks([0, .5, 1, 1.5, 2])
+    ax2.plot(etas * 100, taus, color="black", linestyle="--", label=r'$\tau$')
+    ax2.set_ylim([0, 1.5])
+    ax2.set_yticks([0, .5, 1, 1.5])
     plt.legend()
 
     if save:
@@ -498,7 +516,7 @@ def plot_structure_optimisation(load="data/structure-costs.npz", save=None, **kw
         ns[0] = 1
         omegas = np.linspace(1, 180, 180)
 
-        plt.subplot(131)
+        plt.subplot2grid((1, 5), (0, 0), colspan=2)
         means = np.zeros_like(ns)
         ses = np.zeros_like(ns)
         n_default = kwargs.pop('n', 360)
@@ -519,7 +537,7 @@ def plot_structure_optimisation(load="data/structure-costs.npz", save=None, **kw
         plt.xlabel(r'units ($n$)')
         plt.ylabel(r'MSE ($^\circ$)')
 
-        plt.subplot(132)
+        plt.subplot2grid((1, 5), (0, 2), colspan=2)
         means = np.zeros_like(omegas)
         ses = np.zeros_like(omegas)
         for ii, omega in enumerate(omegas):
@@ -538,7 +556,8 @@ def plot_structure_optimisation(load="data/structure-costs.npz", save=None, **kw
                    [r'%d$^\circ$' % o for o in np.linspace(0, 180, 7, endpoint=True)])
         plt.xlabel(r'receptive field ($\omega$)')
 
-        ax = plt.subplot(133, polar=True)
+        ax = plt.subplot2grid((1, 5), (0, 4), polar=True)
+        # ax = plt.subplot(133, polar=True)
         ax.set_theta_zero_location("N")
         ax.set_theta_direction(-1)
         ax.set_thetamin(0)
@@ -574,13 +593,16 @@ def plot_structure_optimisation(load="data/structure-costs.npz", save=None, **kw
 
         with plt.rc_context({'ytick.color': 'white'}):
             plt.pcolormesh(np.deg2rad(omegas), ns, means, cmap="Reds", vmin=0, vmax=90)
-            plt.scatter(np.deg2rad(omega_min), n_min, s=20, c='yellowgreen', marker='o')
+            plt.scatter(np.deg2rad(omega_min), n_min, s=1, c='yellowgreen', marker='o')
             plt.plot(np.deg2rad(omega_min), n_min, 'g-')
             plt.yticks([4, 12, 60, 112, 176, 272, 360], [""] * 7)
             plt.xticks(np.deg2rad([14, 30, 60, 90, 120, 150, 180]))
             plt.ylim([4, 360])
             plt.xlim([0, 180])
             ax.grid(alpha=0.2)
+
+        ax.set_thetamin(0)
+        ax.set_thetamax(180)
 
         return plt
 
@@ -609,18 +631,90 @@ def plot_terrain(terrain, max_altitude=.5):
     return plt
 
 
-def plot_route(opath, ipath, subplot=111):
+def plot_route(opath, ipath, id=None, label=None, subplot=111, xlim=None):
     plt.subplot(subplot)
-    plt.plot(opath[:, 0], opath[:, 1], 'r-')
-    plt.plot(ipath[:, 0], ipath[:, 1], 'k--')
-    plt.xlim([4, 7])
+    if id is not None:
+        plt.plot(opath[:, 0], opath[:, 1], 'C%d' % id, alpha=.5)
+        plt.plot(ipath[:, 0], ipath[:, 1], 'C%d' % id, label=label)
+        # plt.plot(ipath[:, 0], ipath[:, 1], 'C%d' % id, label=r'$\eta = %.1f$' % noise)
+    else:
+        plt.plot(opath[:, 0], opath[:, 1], 'r-')
+        plt.plot(ipath[:, 0], ipath[:, 1], 'k--')
+    plt.xlim([4, 7] if xlim is None else xlim)
     plt.ylim([-1, 9])
+
+    return plt
+
+
+def plot_tortuosity(d_c, d_x, id=0, label=None, subplot=111):
+    d_x_mean = np.mean(d_x, axis=0)
+    d_x_se = np.std(d_x, axis=0) / np.sqrt(len(d_x))
+
+    plt.subplot(subplot)
+    plt.fill_between(d_c[-1], d_x_mean - 3 * d_x_se, d_x_mean + 3 * d_x_se, facecolor='C%d' % id, alpha=.5)
+    plt.plot(d_c[-1], d_x_mean, 'C%d' % id, label=label)
+    plt.ylim([0, 100])
+    plt.xlim([0, 200])
+    # plt.ylabel(r"Distance from home [%]")
+    # plt.xlabel(r"Distance travelled / Turning point distance [%]")
+
+    return plt
+
+
+def plot_circ_response(phi, r_mean, r_std, phi_mean, baseline=.5, uniform=True, subplot=(1, 1, 1)):
+    ax = plt.subplot(*subplot, polar=True)
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+
+    y_min, y_max = -.3, 1.1
+    plt.bar(phi, baseline + r_mean, .1, yerr=r_std, facecolor='black')
+    plt.plot(np.linspace(-np.pi, np.pi, 361), np.full(361, baseline), 'k-')
+    if uniform:
+        x_mean = [phi_mean, phi_mean, phi_mean + np.pi, phi_mean + np.pi]
+        y_mean = [y_max, y_min, y_min, y_max]
+    else:
+        x_mean = [phi_mean + np.pi, phi_mean + np.pi]
+        y_mean = [y_max, y_min]
+    plt.plot(x_mean, y_mean, 'r-.')
+    plt.yticks([])
+    plt.xticks(np.linspace(0, 2 * np.pi, 8, endpoint=False),
+               [r'%d$^\circ$' % x for x in ((np.linspace(0, 360, 8, endpoint=False) + 180) % 360 - 180)])
+    plt.ylim([y_min, y_max])
+
+    return plt
+
+
+def plot_summary_response(phi_mean, phi_max, fit_line=True, subplot=111):
+    tb1_names = []
+    x, y = [], []
+
+    plt.subplot(subplot)
+    for col, (phi_mean_i, phi_max_i) in enumerate(zip(phi_mean, phi_max)):
+        if not np.any(np.isnan(phi_max_i)):
+            x.append([(phi_max_i + np.pi/18) % (2 * np.pi) - np.pi/18, 1])
+            y.append(col)
+        tb1_names.append('L%d/R%d' % (8 - col, col + 1))
+        plt.scatter([col] * len(phi_mean_i), np.rad2deg(phi_mean_i) % 360, s=20, c='black')
+        plt.scatter(col, np.rad2deg(phi_max_i) % 360, s=50, c='red', marker='*')
+    x = np.array(x)
+    y = np.array(y)
+    if fit_line:
+        a, b = np.linalg.pinv(x).dot(y)
+
+        plt.plot([-1, 8], np.rad2deg([(-1 - b) / a, (8 - b) / a]), 'r-.')
+    plt.xticks([0, 1, 2, 3, 4, 5, 6, 7],
+               [tb1_names[0], '', tb1_names[2], '', tb1_names[4], '', tb1_names[6], ''])
+    plt.yticks([0, 45, 90, 135, 180, 225, 270, 315, 360],
+               ['0', '', '90', '', '180', '', '270', '', '360'])
+    plt.ylim([-20, 380])
+    plt.xlim([-1, 8])
 
     return plt
 
 
 if __name__ == "__main__":
     # plot_res2ele().show()
-    # plot_accuracy().show()
+    # plot_accuracy(verbose=True).show()
     # plot_gate_optimisation(save="data/gate-costs-2.npz", load=None)
-    plot_structure_optimisation(tilting=True, mode=3, n=60, omega=56, weighted=True).show()
+    # plot_structure_optimisation(load="../data/structure-costs.npz", save=None).show()
+    pass
