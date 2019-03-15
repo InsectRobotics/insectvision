@@ -20,7 +20,7 @@ x_terrain = np.linspace(0, 10, 1001, endpoint=True)
 y_terrain = np.linspace(0, 10, 1001, endpoint=True)
 x_terrain, y_terrain = np.meshgrid(x_terrain, y_terrain)
 try:
-    z_terrain = np.load("../data/terrain-%.2f.npz" % 0.6)["terrain"] * 400
+    z_terrain = np.load("../data/terrain-%.2f.npz" % 0.6)["terrain"] * 500
 except IOError:
     z_terrain = np.random.randn(*x_terrain.shape) / 50
 
@@ -78,7 +78,7 @@ def get_3d_direction(x, y, yaw, tau=.06):
     return theta_p - np.pi/2, phi_p - yaw
 
 
-if __name__ == "__main__":
+if __name__ == "__main _2__":
     # sensor design
     n = 60
     omega = 56
@@ -273,6 +273,7 @@ if __name__ == "__main__":
         np.savez_compressed("../data/terrain-%.2f.npz" % tau, terrain=terrain)
 
     plt.figure("terrain", figsize=(5, 5))
-    plt.imshow(terrain, cmap="PRGn", extent=[0, 10, 0, 10], vmin=-.5, vmax=.5)
+    plt.imshow(terrain, cmap="Greys", extent=[0, 10, 0, 10], vmin=-.5, vmax=.5)
+    # plt.imshow(terrain, cmap="PRGn", extent=[0, 10, 0, 10], vmin=-.5, vmax=.5)
     plt.colorbar()
     plt.show()

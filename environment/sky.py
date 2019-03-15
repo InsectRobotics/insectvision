@@ -104,20 +104,23 @@ class Sky(Environment):
             _, a = tilt(theta_s, phi_s + np.pi, theta, phi)
 
         # create cloud disturbance
-        if type(noise) is np.ndarray:
-            if noise.size == p.size:
-                # print "yeah!"
-                eta = np.array(noise, dtype=bool)
-                if self.verbose:
-                    print "Noise level: %.4f (%.2f %%)" % (noise, 100. * eta.sum() / float(eta.size))
+        if eta is None:
+            if type(noise) is np.ndarray:
+                if noise.size == p.size:
+                    # print "yeah!"
+                    eta = np.array(noise, dtype=bool)
+                    if self.verbose:
+                        print "Noise level: %.4f (%.2f %%)" % (noise, 100. * eta.sum() / float(eta.size))
+                else:
+                    eta = np.zeros_like(theta, dtype=bool)
+                    eta[:noise.size] = noise
+            elif noise > 0:
+                eta = np.argsort(np.absolute(np.random.randn(*p.shape)))[:int(noise * p.shape[0])]
             else:
                 eta = np.zeros_like(theta, dtype=bool)
-                eta[:noise.size] = noise
-        elif noise > 0:
-            eta = np.argsort(np.absolute(np.random.randn(*p.shape)))[:int(noise * p.shape[0])]
-        else:
-            eta = np.zeros_like(theta, dtype=bool)
+        y[eta] = 0.
         p[eta] = 0.  # destroy the polarisation pattern
+        a[eta] = np.nan
 
         self.__y = y
         self.__dop = p

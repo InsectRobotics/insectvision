@@ -1,4 +1,3 @@
-from notebooks.plots import *
 from compoundeye.geometry import angles_distribution
 from environment import Sun, Sky, get_seville_observer, eps, load_routes, Hybrid
 from sphere.transform import sph2vec, vec2sph, tilt
@@ -75,7 +74,7 @@ def turn(x, y, yaw, theta, phi, theta_s, phi_s, flow, noise=0.):
     v = np.array([np.sin(yaw), np.cos(yaw)]) * route.dx
 
 
-def get_3d_direction(x, y, yaw, tau=.06):
+def get_3d_direction(x, y, yaw, z_terrain, tau=.06):
     # create point cloud
     i = np.sqrt(np.square(x - x_terrain) + np.square(y - y_terrain)) < tau
     points = np.array([x_terrain[i], y_terrain[i], z_terrain[i]]).T
@@ -124,103 +123,131 @@ stats = {
 }
 
 terrain = z_terrain.copy()
-for max_altitude in [.0, .1, .2, .3, .4, .5]:
-    z_terrain = terrain * max_altitude
-    print "Maximum altitude has been set to %.2f m (variance [-%.2f m, %.2f m])" % tuple([max_altitude] * 3)
-    for ni, noise in enumerate([0.0, 0.2, 0.4, 0.6, 0.8, .97]):
-        print "Disturbance level has been set to %.2f %%" % noise
 
-        # stats
-        d_x = []  # logarithmic distance
-        d_c = []
-        tau = []  # tortuosity
-        ri = 0
 
-        print "Routes: ",
-        for route in routes[::2]:
-            net = CX(noise=0., pontin=False)
-            net.update = True
+def create_dataset():
+    for max_altitude in [.0, .1, .2, .3, .4, .5]:
+        z_terrain = terrain * max_altitude
+        print "Maximum altitude has been set to %.2f m (variance [-%.2f m, %.2f m])" % tuple([max_altitude] * 3)
+        for ni, noise in enumerate([0.0, 0.2, 0.4, 0.6, 0.8, .97]):
+            print "Disturbance level has been set to %.2f %%" % noise
 
-            # outward route
-            route.condition = Hybrid(tau_x=dx)
-            oroute = route.reverse()
-            x, y, yaw = [(x0, y0, yaw0) for x0, y0, _, yaw0 in oroute][0]
-            opath = [[x, y, yaw]]
+            # stats
+            d_x = []  # logarithmic distance
+            d_c = []
+            tau = []  # tortuosity
+            ri = 0
 
-            v = np.zeros(2)
-            tb1 = []
+            print "Routes: ",
+            for route in routes[::2]:
+                net = CX(noise=0., pontin=False)
+                net.update = True
 
-            for _, _, _, yaw in oroute:
-                theta_t, phi_t = get_3d_direction(opath[-1][0], opath[-1][1], yaw, tau=ttau)
-                max_theta = max_theta if max_theta > np.absolute(theta_t) else np.absolute(theta_t)
-                theta_n, phi_n = tilt(theta_t, phi_t, theta, phi + yaw)
+                # outward route
+                route.condition = Hybrid(tau_x=dx)
+                oroute = route.reverse()
+                x, y, yaw = [(x0, y0, yaw0) for x0, y0, _, yaw0 in oroute][0]
+                opath = [[x, y, yaw]]
 
-                sky.theta_s, sky.phi_s = theta_s, phi_s
-                Y, P, A = sky(theta_n, phi_n, noise=noise)
+                v = np.zeros(2)
+                tb1 = []
 
-                r_tb1 = encode(theta, phi, Y, P, A)
-                yaw0 = yaw
-                _, yaw = np.pi - decode_sph(r_tb1) + phi_s
+                for _, _, _, yaw in oroute:
+                    theta_t, phi_t = get_3d_direction(opath[-1][0], opath[-1][1], yaw, z_terrain, tau=ttau)
+                    max_theta = max_theta if max_theta > np.absolute(theta_t) else np.absolute(theta_t)
+                    theta_n, phi_n = tilt(theta_t, phi_t, theta, phi + yaw)
 
-                net(yaw, flow)
-                yaw = (yaw + np.pi) % (2 * np.pi) - np.pi
-                v = np.array([np.sin(yaw), np.cos(yaw)]) * route.dx
-                opath.append([opath[-1][0] + v[0], opath[-1][1] + v[1], yaw])
-                tb1.append(net.tb1)
-            opath = np.array(opath)
+                    sky.theta_s, sky.phi_s = theta_s, phi_s
+                    Y, P, A = sky(theta_n, phi_n, noise=noise)
 
-            yaw -= phi_s
+                    r_tb1 = encode(theta, phi, Y, P, A)
+                    yaw0 = yaw
+                    _, yaw = np.pi - decode_sph(r_tb1) + phi_s
 
-            # inward route
-            ipath = [[opath[-1][0], opath[-1][1], opath[-1][2]]]
-            L = 0.  # straight distance to the nest
-            C = 0.  # distance towards the nest that the agent has covered
-            SL = 0.
-            TC = 0.
-            tb1 = []
-            tau.append([])
-            d_x.append([])
-            d_c.append([])
+                    net(yaw, flow)
+                    yaw = (yaw + np.pi) % (2 * np.pi) - np.pi
+                    v = np.array([np.sin(yaw), np.cos(yaw)]) * route.dx
+                    opath.append([opath[-1][0] + v[0], opath[-1][1] + v[1], yaw])
+                    tb1.append(net.tb1)
+                opath = np.array(opath)
 
-            while C < 15:
-                theta_t, phi_t = get_3d_direction(ipath[-1][0], ipath[-1][1], yaw, tau=ttau)
-                theta_n, phi_n = tilt(theta_t, phi_t, theta, phi + yaw)
+                yaw -= phi_s
 
-                sky.theta_s, sky.phi_s = theta_s, phi_s
-                Y, P, A = sky(theta_n, phi_n, noise=noise)
+                # inward route
+                ipath = [[opath[-1][0], opath[-1][1], opath[-1][2]]]
+                L = 0.  # straight distance to the nest
+                C = 0.  # distance towards the nest that the agent has covered
+                SL = 0.
+                TC = 0.
+                tb1 = []
+                tau.append([])
+                d_x.append([])
+                d_c.append([])
 
-                r_tb1 = encode(theta, phi, Y, P, A)
-                _, yaw = np.pi - decode_sph(r_tb1) + phi_s
-                motor = net(yaw, flow)
-                yaw = (ipath[-1][2] + motor + np.pi) % (2 * np.pi) - np.pi
-                v = np.array([np.sin(yaw), np.cos(yaw)]) * route.dx
-                ipath.append([ipath[-1][0] + v[0], ipath[-1][1] + v[1], yaw])
-                tb1.append(net.tb1)
-                L = np.sqrt(np.square(opath[0][0] - ipath[-1][0]) + np.square(opath[0][1] - ipath[-1][1]))
-                C += route.dx
-                d_x[-1].append(L)
-                d_c[-1].append(C)
-                tau[-1].append(L / C)
-                if C <= route.dx:
-                    SL = L
-                if TC == 0. and len(d_x[-1]) > 50 and d_x[-1][-1] > d_x[-1][-2]:
-                    TC = C
+                while C < 15:
+                    theta_t, phi_t = get_3d_direction(ipath[-1][0], ipath[-1][1], yaw, z_terrain, tau=ttau)
+                    theta_n, phi_n = tilt(theta_t, phi_t, theta, phi + yaw)
 
-            ipath = np.array(ipath)
-            d_x[-1] = np.array(d_x[-1]) / SL * 100
-            d_c[-1] = np.array(d_c[-1]) / TC * 100
-            tau[-1] = np.array(tau[-1])
+                    sky.theta_s, sky.phi_s = theta_s, phi_s
+                    Y, P, A = sky(theta_n, phi_n, noise=noise)
 
-            ri += 1
+                    r_tb1 = encode(theta, phi, Y, P, A)
+                    _, yaw = np.pi - decode_sph(r_tb1) + phi_s
+                    motor = net(yaw, flow)
+                    yaw = (ipath[-1][2] + motor + np.pi) % (2 * np.pi) - np.pi
+                    v = np.array([np.sin(yaw), np.cos(yaw)]) * route.dx
+                    ipath.append([ipath[-1][0] + v[0], ipath[-1][1] + v[1], yaw])
+                    tb1.append(net.tb1)
+                    L = np.sqrt(np.square(opath[0][0] - ipath[-1][0]) + np.square(opath[0][1] - ipath[-1][1]))
+                    C += route.dx
+                    d_x[-1].append(L)
+                    d_c[-1].append(C)
+                    tau[-1].append(L / C)
+                    if C <= route.dx:
+                        SL = L
+                    if TC == 0. and len(d_x[-1]) > 50 and d_x[-1][-1] > d_x[-1][-2]:
+                        TC = C
 
-            stats["max_alt"].append(max_altitude)
-            stats["noise"].append(noise)
-            stats["opath"].append(opath)
-            stats["ipath"].append(ipath)
-            stats["d_x"].append(d_x)
-            stats["d_c"].append(d_c)
-            stats["tau"].append(tau)
-            print ".",
-        print ""
+                ipath = np.array(ipath)
+                d_x[-1] = np.array(d_x[-1]) / SL * 100
+                d_c[-1] = np.array(d_c[-1]) / TC * 100
+                tau[-1] = np.array(tau[-1])
 
-np.savez_compressed("../data/pi-stats.npz", **stats)
+                ri += 1
+
+                stats["max_alt"].append(max_altitude)
+                stats["noise"].append(noise)
+                stats["opath"].append(opath)
+                stats["ipath"].append(ipath)
+                stats["d_x"].append(d_x)
+                stats["d_c"].append(d_c)
+                stats["tau"].append(tau)
+                print ".",
+            print ""
+
+    np.savez_compressed("../data/pi-stats.npz", **stats)
+
+
+if __name__ == '__main__':
+    from plots import plot_route
+    stats = np.load("../data/pi-stats.npz")
+
+    ipaths = stats["ipath"]
+    opaths = stats["opath"]
+    d_xs = stats["d_x"]
+    d_cs = stats["d_c"]
+    max_alts = stats["max_alt"]
+    noises = stats["noise"]
+    un_max_alts = np.sort(np.unique(max_alts))
+    un_noises = np.sort(np.unique(noises))
+
+    plt.figure("Inclinations", figsize=(15, 30))
+    for j, max_alt in enumerate(un_max_alts):
+        for id, noise in enumerate(un_noises):
+            ipath_f = ipaths[np.all([max_alt == max_alts, noise == noises], axis=0)]
+            opath_f = opaths[np.all([max_alt == max_alts, noise == noises], axis=0)]
+            for ipath, opath in zip(ipath_f[::2], opath_f[::2]):
+                plot_route(opath, ipath, subplot=(len(un_noises), len(un_max_alts), 1 + len(un_noises) * j + id))
+    # plt.legend()
+    plt.savefig("cx-detailed.svg")
+    plt.show()

@@ -632,7 +632,10 @@ def plot_terrain(terrain, max_altitude=.5):
 
 
 def plot_route(opath, ipath, id=None, label=None, subplot=111, xlim=None):
-    plt.subplot(subplot)
+    if type(subplot) is not type(int):
+        plt.subplot(*subplot)
+    else:
+        plt.subplot(subplot)
     if id is not None:
         plt.plot(opath[:, 0], opath[:, 1], 'C%d' % id, alpha=.5)
         plt.plot(ipath[:, 0], ipath[:, 1], 'C%d' % id, label=label)
