@@ -1,17 +1,24 @@
-from compoundeye import POLCompassDRA
-from compoundeye.evaluation import evaluate
-from compoundeye.geometry import fibonacci_sphere, angles_distribution
-from environment import Sun, Sky, get_seville_observer, eps
+#!/usr/bin/env python
+
+__author__ = "Evripidis Gkanias"
+__copyright__ = "Copyright (c) 2019, Insect Robotics Group," \
+                "Institude of Perception, Action and Behaviour," \
+                "School of Informatics, the University of Edinburgh"
+__credits__ = ["Evripidis Gkanias"]
+__license__ = "MIT"
+__version__ = "1.0.1"
+__maintainer__ = "Evripidis Gkanias"
+
+
+from compoundeye.geometry import angles_distribution
+from environment import Sun, Sky, eps
 from world import load_routes, Hybrid
 from sphere.transform import sph2vec, vec2sph, tilt
 from code.compass import decode_sph
 from net import CX
 
 from datetime import datetime, timedelta
-from scipy.io import loadmat
-from astropy.stats import circmean, circvar, rayleightest
 import numpy as np
-import matplotlib.pyplot as plt
 
 x_terrain = np.linspace(0, 10, 1001, endpoint=True)
 y_terrain = np.linspace(0, 10, 1001, endpoint=True)
