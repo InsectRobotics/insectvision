@@ -1,0 +1,41 @@
+gain: -20.
+learning-rate: .2
+kc-threshold: 1.7
+mushroom-body:
+  PN: 360
+  KC: 20000
+  EN: 1
+central-complex:
+  TL2: 16
+  CL1: 16
+  TB1: 8
+  TN1: 2
+  TN2: 2
+  CPU4: 16
+  CPU1A: 14
+  CPU1B: 2
+  columns: 8
+central-complex-rate:
+  tl2-tuned:
+    slope: 6.8
+    bias: 3.0
+  cl1-tuned:
+    slope: 3.0
+    bias: -0.5
+  tb1-tuned:
+    slope: 5.0
+    bias: 0.0
+  cpu4-tuned:
+    slope: 5.0
+    bias: 2.5
+  cpu1-tuned:
+    slope: 5.0
+#    slope: 7.5
+    bias: 2.5
+#    bias: -1.0
+  motor-tuned:
+    slope: 1.0
+    bias: 3.0
+  pontin-tuned:
+    slope: 5.0
+    bias: 2.5
