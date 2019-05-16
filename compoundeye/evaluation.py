@@ -189,7 +189,10 @@ def evaluate(nb_pol=60, omega=56, sigma=np.deg2rad(13), shift=np.deg2rad(40),
             # decode response - FFT
             R = r_tcl.dot(np.exp(-np.arange(nb_tcl) * (0. + 1.j) * 2. * np.pi / float(nb_tcl)))
             a_pred = (np.pi - np.arctan2(R.imag, R.real)) % (2. * np.pi) - np.pi  # sun azimuth (prediction)
-            tau_pred = 3.5 * (np.absolute(R) - .53)  # certainty of prediction
+            # tau_pred = 3.5 * np.absolute(R) - 1.855  # certainty of prediction
+            # tau_pred = 3.5 * np.absolute(R)  # certainty of prediction
+            tau_pred = np.absolute(R)  # certainty of prediction
+            # tau_pred = np.exp(np.absolute(R) * nb_tcl) / 90.
 
             d[i, j] = np.absolute(azidist(np.array([e, a]), np.array([0., a_pred])))
             t[i, j] = tau_pred
@@ -287,3 +290,10 @@ def evaluate(nb_pol=60, omega=56, sigma=np.deg2rad(13), shift=np.deg2rad(40),
     d_deg = np.rad2deg(d)
 
     return d_deg, d_eff, t, a_ret, tb1
+
+
+if __name__ == "__main__":
+    thetas, phis, _ = angles_distribution(60, 56)
+
+    for theta, phi in zip(thetas, phis):
+        print np.rad2deg(theta), np.rad2deg(phi)

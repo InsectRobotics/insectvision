@@ -146,18 +146,18 @@ def plot_res2ele(samples=1000, noise=0., subplot=111):
 
     ele = np.rad2deg(ele).flatten()
     res = np.array(res).flatten()
-    ele_pred = 26 * (1 - 2 * np.arcsin(1 - np.clip(res, 0, 2)) / np.pi) + 15  # + np.random.randn(res.size)
+    ele_pred = 26 * (1 - 2 * np.arcsin(np.clip(2.855 - 3.5 * res, -1, 1)) / np.pi) + 15
 
     plt.subplot(subplot)
     plt.scatter(res, ele, c='black', marker='.')
-    plt.scatter(np.clip(res, 0, 2), ele_pred, c='red', marker='.')
+    plt.scatter(np.clip(res, 0, 4), ele_pred, c='red', marker='.')
     plt.plot([-.5, 3 * np.pi / 4], [18.75, 18.75], "k--")
     plt.plot([-.5, 3 * np.pi / 4], [65.98, 65.98], "k--")
     plt.ylabel(r'$\epsilon (\circ)$')
     plt.xlabel(r'$\tau$')
-    plt.xlim([-.5, 3 * np.pi / 4])
+    plt.xticks([0.5, 0.75, 1, 1.25])
+    plt.xlim([.43, 1.21])
     plt.ylim([90, 0])
-    # plt.xticks([0, 90, 180, 270, 360])
     return plt
 
 
@@ -386,8 +386,8 @@ def plot_accuracy(save=None, repeats=10, verbose=False, **kwargs):
 
     ax2 = ax1.twinx()
     ax2.plot(np.rad2deg(sun_ele), tau, 'k--')
-    ax2.set_ylim([0, 1.5])
-    ax2.set_yticks([0, .5, 1, 1.5])
+    ax2.set_ylim([0, 1.2])
+    ax2.set_yticks([0, .4, .8, 1.2])
 
     ax3.set_yticks([0, .03, .06, .09])
     ax3.set_ylim([0, .09])
@@ -413,25 +413,26 @@ def plot_accuracy(save=None, repeats=10, verbose=False, **kwargs):
             d_err, d_eff, tau, _, _ = evaluate(**kwargs)
             means[ii] = (means[ii] * i + d_err.mean()) / (i + 1)
             ses[ii] = (ses[ii] * i + d_err.std() / np.sqrt(d_err.size)) / (i + 1)
-            taus[ii] = (taus[ii] * i + np.clip(tau, 0, 2).mean()) / (i + 1)
+            taus[ii] = (taus[ii] * i + np.maximum(tau, 0).mean()) / (i + 1)
 
     if verbose:
-        print " Disturbance         Cost        "
-        print "---------------------------------"
+        print " Disturbance         Cost          Confidence        "
+        print "-----------------------------------------------------"
         for i, eta in enumerate(etas):
-            print "   % 3.2f%%    % 2.2f +/- %.4f " % (eta * 100, means[i], ses[i])
+            print "   % 3.2f%%    % 2.2f +/- %.4f    % 2.2f" % (eta * 100, means[i], ses[i], taus[i])
 
     ax1.fill_between(etas * 100, means-ses, means+ses, facecolor="grey")
     ax1.plot(etas * 100, means, color="black", linestyle="-", label=r'$J_s$')
+    ax1.plot(etas * 100, tau2sigma(taus), color="black", linestyle="--", label=r'$\sigma$')
     ax1.set_ylim([0, 30])
     ax1.set_yticks([])
     ax1.set_xlim([0, 100])
     ax1.set_xlabel(r'disturbance ($\eta$) [%]')
 
     ax2 = ax1.twinx()
-    ax2.plot(etas * 100, taus, color="black", linestyle="--", label=r'$\tau$')
-    ax2.set_ylim([0, 1.5])
-    ax2.set_yticks([0, .5, 1, 1.5])
+    ax2.plot(etas * 100, taus, color="grey", linestyle="--", label=r'$\tau$')
+    ax2.set_ylim([0, 1.2])
+    ax2.set_yticks([0, .4, .8, 1.2])
     plt.legend()
 
     if save:
@@ -727,9 +728,36 @@ def plot_summary_response(phi_mean, phi_max, fit_line=True, subplot=111):
     return plt
 
 
+def tau2sigma(tau):
+    return 4. / tau - 2
+
+
+def sigma2tau(sigma):
+    return 4. / (sigma + 2.)
+
+
 if __name__ == "__main__":
-    # plot_res2ele().show()
-    # plot_accuracy(verbose=True).show()
+    # plt.figure("res2ele", figsize=(5, 5))
+    # plot_res2ele(noise=0.).show()
+    plot_accuracy(verbose=True).show()
     # plot_gate_optimisation(save="data/gate-costs-2.npz", load=None)
     # plot_structure_optimisation(load="../data/structure-costs.npz", save=None).show()
-    pass
+
+    # sigma = np.array([0.28, 2.32, 2.80, 3.67, 4.63, 5.15, 5.70, 6.58, 7.85, 7.86, 8.47,
+    #                   9.01, 10.58, 11.44, 12.77, 14.01, 16.82, 19.71, 29.40, 46.86, 90])
+    # tau = np.array([0.91, 0.86, 0.83, 0.79, 0.74, 0.69, 0.64, 0.58, 0.54, 0.51, 0.46,
+    #                 0.41, 0.37, 0.34, 0.29, 0.24, 0.20, 0.17, 0.11, 0.07, 0.00])
+    #
+    # f_sigma = lambda x: 4./x - 2.
+    # f_tau = lambda x: 1./8. * np.log(90./x)
+    # eta = np.linspace(0, 1, sigma.size)
+    # plt.plot(eta, sigma, 'C0-')
+    # plt.plot(eta, tau, 'C1-')
+    # plt.plot(eta, f_sigma(tau), 'C0--')
+    # plt.plot(eta, f_tau(sigma), 'C1--')
+    # plt.plot(sigma, tau)
+    # plt.plot(sigma, f_tau(sigma))
+    # plt.plot(f_sigma(tau), tau)
+    # plt.ylim([0, 30])
+    # plt.show()
+
