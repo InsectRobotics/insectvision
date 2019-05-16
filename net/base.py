@@ -1,21 +1,11 @@
 import numpy as np
-import yaml
-import os
 
-
-# get path of the script
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-# load parameters
-with open(os.path.join(__dir__, 'params.yaml'), 'rb') as f:
-    params = yaml.safe_load(f)
-
-GAIN = params['gain']
 RNG = np.random.RandomState(2018)
 
 
 class Network(object):
 
-    def __init__(self, gain=GAIN, rng=RNG, dtype=np.float32):
+    def __init__(self, gain=-20, rng=RNG, dtype=np.float32):
         """
 
         :param gain:

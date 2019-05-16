@@ -1,6 +1,16 @@
-import numpy as np
-from base import Network, params, RNG
+from base import Network, RNG
 
+import numpy as np
+import yaml
+import os
+
+# get path of the script
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+# load parameters
+with open(os.path.join(__dir__, 'Adin2016.yaml'), 'rb') as f:
+    params = yaml.safe_load(f)
+
+GAIN = params['gain']
 LEARNING_RATE = params['learning-rate']
 KC_THRESHOLD = params['kc-threshold']
 
