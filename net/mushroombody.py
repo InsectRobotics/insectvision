@@ -1,4 +1,5 @@
 from base import Network, RNG
+from willshawnet import generate_pn2kc_weights
 from data.visualisation import plot_matrix
 
 import numpy as np
@@ -19,7 +20,17 @@ class MushroomBody(Network):
     def __init__(self, **kwargs):
         super(MushroomBody, self).__init__(**kwargs)
 
-        # initialised KC values
+        # initialised PN values
+        types = sorted(params['PN'].keys())
+        self.pn = pd.concat([
+            pd.concat([pd.DataFrame(np.zeros(n, dtype=float)) for _, n in params['PN'][t]],
+                      keys=[s for s, _ in params['PN'][t]],
+                      names=["name", "index"], axis=0) for t in types],
+            keys=types, names=["cluster", "name", "index"], axis=0
+        ).T  # type:pd.DataFrame
+        self.nb_pn = self.pn.shape[1]
+
+        # KCs
         types = sorted(params['KC'].keys())
         self.kc = pd.concat([
             pd.concat([pd.DataFrame(np.zeros(n, dtype=float)) for _, n in params['KC'][t]],
@@ -50,6 +61,12 @@ class MushroomBody(Network):
         self.nb_dan = self.dan.shape[1]
 
         locs = sorted(params['LOC2DAN'].keys())
+
+        # PN2KC
+        pn_names = self.pn.columns.levels[1][self.pn.columns.codes[1]]
+        self.w_pn2kc = generate_pn2kc_weights(self.nb_pn, self.nb_kc, min_pn=5, max_pn=21, dtype=float)
+        self.w_pn2kc = pd.DataFrame(self.w_pn2kc, index=pn_names, columns=locs, dtype=float)
+        self.w_pn2kc.index = self.pn.columns
 
         # KC2LOC
         kc_names = self.kc.columns.levels[1][self.kc.columns.codes[1]]
@@ -101,8 +118,41 @@ class MushroomBody(Network):
         self.w_loc2mbon = pd.DataFrame(self.w_loc2mbon, index=locs, columns=mbon_names, dtype=float)
         self.w_loc2mbon.columns = self.mbon.columns
 
+        self.f_pn = lambda x: x
+        self.f_kc = lambda x: x
+        self.f_mbon = lambda x: x
+        self.f_dan = lambda x: x
+
+    def __call__(self, *args, **kwargs):
+        return None
+
+    def _fprop(self, pn):
+        a_pn = self.f_pn(pn)
+
+        kc = a_pn.dot(self.w_pn2kc)
+        # TODO: Add connections from CZ to KC
+        a_kc = self.f_kc(kc)
+
+        loc = a_kc.dot(self.w_kc2loc) + self.dan.dot(self.w_dan2loc) + self.mbon.dot(self.w_mbon2loc)
+
+        mbon = loc.dot(self.w_loc2mbon)
+        a_mbon = self.f_mbon(mbon)
+
+        dan = loc.dot(self.w_loc2dan)
+        a_dan = self.f_dan(dan)
+
+        return a_pn, a_kc, a_dan, a_mbon
+
+    def _update(self, kc):
+        pass
+
 
 if __name__ == "__main__":
+    mb = MushroomBody()
+    print mb.kc
+
+
+if __name__ == "__main__" and False:
     import matplotlib.pyplot as plt
 
     mb = MushroomBody()
