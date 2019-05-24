@@ -711,17 +711,22 @@ def plot_summary_response(phi_mean, phi_max, fit_line=True, subplot=111):
             y.append(col)
         tb1_names.append('L%d/R%d' % (8 - col, col + 1))
         plt.scatter([col] * len(phi_mean_i), np.rad2deg(phi_mean_i) % 360, s=20, c='black')
+        plt.scatter([col] * len(phi_mean_i), np.rad2deg(phi_mean_i) % 360 + 360, s=20, c='black')
+        plt.scatter([col] * len(phi_mean_i), np.rad2deg(phi_mean_i) % 360 - 360, s=20, c='black')
         plt.scatter(col, np.rad2deg(phi_max_i) % 360, s=50, c='red', marker='*')
+        plt.scatter(col, np.rad2deg(phi_max_i) % 360 + 360, s=50, c='red', marker='*')
+        plt.scatter(col, np.rad2deg(phi_max_i) % 360 + 360, s=50, c='red', marker='*')
     x = np.array(x)
     y = np.array(y)
     if fit_line:
-        a, b = np.linalg.pinv(x).dot(y)
+        print x.shape, y.shape
+        a, b = np.linalg.pinv(x[:-1]).dot(y[:-1])
 
         plt.plot([-1, 8], np.rad2deg([(-1 - b) / a, (8 - b) / a]), 'r-.')
     plt.xticks([0, 1, 2, 3, 4, 5, 6, 7],
                [tb1_names[0], '', tb1_names[2], '', tb1_names[4], '', tb1_names[6], ''])
-    plt.yticks([0, 45, 90, 135, 180, 225, 270, 315, 360],
-               ['0', '', '90', '', '180', '', '270', '', '360'])
+    plt.yticks([-90, -45, 0, 45, 90, 135, 180, 225, 270, 315, 360],
+               ['-90', '', '0', '', '90', '', '180', '', '270', '', '360'])
     plt.ylim([-20, 380])
     plt.xlim([-1, 8])
 
@@ -737,11 +742,87 @@ def sigma2tau(sigma):
 
 
 if __name__ == "__main__":
+
+    from astropy.stats import rayleightest
+
     # plt.figure("res2ele", figsize=(5, 5))
     # plot_res2ele(noise=0.).show()
-    plot_accuracy(verbose=True).show()
+    # plot_accuracy(verbose=True).show()
     # plot_gate_optimisation(save="data/gate-costs-2.npz", load=None)
     # plot_structure_optimisation(load="../data/structure-costs.npz", save=None).show()
+
+    phi_tb1 = 3 * np.pi / 2 - np.linspace(np.pi, 0, 8)
+
+    def responses(sun_ele=np.pi / 3, uniform=True, noise=.5, bl=.5):
+        sun_azi = np.linspace(-np.pi, np.pi, 36, endpoint=False)
+        sun_ele = np.full_like(sun_azi, sun_ele)
+
+        phi_maxs = [[]] * 8
+        r_means = [[]] * 8
+        r_stds = [[]] * 8
+        p_values = [[]] * 8
+        tb1s = np.empty((0, sun_azi.shape[0], 8), dtype=sun_azi.dtype)
+
+        for n_tb1 in np.arange(8):
+            tb1s = np.empty((0, sun_azi.shape[0], 8), dtype=sun_azi.dtype)
+
+            for _ in np.linspace(0, 1, 100):
+                d_deg, d_eff, t, phi, r_tb1 = evaluate(uniform_polariser=uniform,
+                                                       sun_azi=sun_azi, sun_ele=sun_ele, tilting=False, noise=noise)
+                tb1s = np.vstack([tb1s, np.transpose(r_tb1, axes=(1, 0, 2))])
+
+            r_mean = np.median(tb1s[..., n_tb1], axis=0)
+            z = r_mean.max() - r_mean.min()
+
+            r_mean = (r_mean - r_mean.min()) / z - bl
+            r_means[n_tb1] = r_mean
+            r_stds[n_tb1] = tb1s[..., n_tb1].std(axis=0) / np.sqrt(z)
+
+            p_values[n_tb1] = rayleightest(sun_azi, weights=r_mean + bl)
+            phi_max = circmean(sun_azi, weights=np.power(r_mean + bl, 50))
+            phi_maxs[n_tb1] = phi_max
+
+        z = tb1s.max() - tb1s.min()
+        tb1s = (tb1s - tb1s.min()) / z
+        phis = np.transpose(np.array([[sun_azi] * 100] * 8), axes=(1, 2, 0))
+        phi_means = circmean(phis, axis=1, weights=np.power(tb1s, 50)).T
+
+        return np.array(phi_maxs)[::-1], phi_means[::-1], np.array(r_means)[::-1], np.array(r_stds)[::-1], np.array(
+            p_values)[::-1]
+
+
+    tcl_phi_max, _, _, _, _ = responses(uniform=True, noise=0.)
+    _, tcl_phi_mean, tcl_r_mean, tcl_r_std, tcl_p_values = responses(uniform=True, noise=0.1)
+
+    phi = np.linspace(np.deg2rad(90), np.deg2rad(270), 8)
+
+    for i in range(len(phi)):
+        d_000 = (tcl_phi_max[i] - phi[i] + np.pi) % (2 * np.pi) - np.pi
+        d_180 = (tcl_phi_max[i] - phi[i]) % (2 * np.pi) - np.pi
+        if np.absolute(d_000) < np.absolute(d_180):
+            tcl_phi_max[i] = (tcl_phi_max[i] + np.pi) % (2 * np.pi) - np.pi
+        else:
+            tcl_phi_max[i] = tcl_phi_max[i] % (2 * np.pi) - np.pi
+    #
+    #     d_000 = (tcl_phi_mean[i] - tcl_phi_max[i] + np.pi) % (2 * np.pi) - np.pi
+    #     d_180 = (tcl_phi_mean[i] - tcl_phi_max[i]) % (2 * np.pi) - np.pi
+    #
+    #     tcl_phi_mean[i][np.absolute(d_000) < np.absolute(d_180)] = \
+    #         (tcl_phi_mean[i][np.absolute(d_000) < np.absolute(d_180)] + np.pi) % (2 * np.pi) - np.pi
+    #
+    #     tcl_phi_mean[i][np.absolute(d_000) >= np.absolute(d_180)] = \
+    #         tcl_phi_mean[i][np.absolute(d_000) >= np.absolute(d_180)] % (2 * np.pi) - np.pi
+    #
+    #     j = np.random.permutation(np.arange(tcl_phi_mean[i].shape[0]))
+    #     tcl_phi_mean[i][j[:10]] = tcl_phi_mean[i][j[:10]] % (2 * np.pi) - np.pi
+
+    plt.figure("heinze-uni-fig-1F", figsize=(5, 5))
+    plot_summary_response(tcl_phi_mean, tcl_phi_max, fit_line=False).show()
+
+    # plt.figure("heinze-fig-1F", figsize=(5, 5))
+    # tcl_sky_phi_max, _, _, _, _= responses(uniform=False, noise=0.)
+    # _, tcl_sky_phi_mean, tcl_sky_r_mean, tcl_sky_r_std, tcl_sky_p_values = responses(uniform=False, noise=0.9)
+    # plot_summary_response(tcl_sky_phi_mean, tcl_sky_phi_max, fit_line=True).show()
 
     # sigma = np.array([0.28, 2.32, 2.80, 3.67, 4.63, 5.15, 5.70, 6.58, 7.85, 7.86, 8.47,
     #                   9.01, 10.58, 11.44, 12.77, 14.01, 16.82, 19.71, 29.40, 46.86, 90])

@@ -96,8 +96,8 @@ def evaluate(nb_pol=60, omega=56, sigma=np.deg2rad(13), shift=np.deg2rad(40),
     alpha = (phi + np.pi/2) % (2 * np.pi) - np.pi
 
     # computational model parameters
-    phi_sol = np.linspace(0., 2 * np.pi, nb_sol, endpoint=False)  # SOL preference angles
-    phi_tcl = np.linspace(0., 2 * np.pi, nb_tcl, endpoint=False)  # TCL preference angles
+    phi_sol = np.linspace(0., 2 * np.pi, nb_sol, endpoint=False) - np.pi/4  # SOL preference angles
+    phi_tcl = np.linspace(0., 2 * np.pi, nb_tcl, endpoint=False) - np.pi/4  # TCL preference angles
 
     # initialise lists for the statistical data
     d = np.zeros((samples, angles.shape[0]), dtype=np.float32)
