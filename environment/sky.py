@@ -1,6 +1,7 @@
 from base import Environment
 from sphere.transform import tilt
 from utils import eps
+from ephem import Sun
 
 import numpy as np
 
@@ -115,7 +116,7 @@ class Sky(Environment):
                 eta[:noise.size] = noise
         elif noise > 0:
             eta = np.argsort(np.absolute(np.random.randn(*p.shape)))[:int(noise * p.shape[0])]
-        else:
+        elif eta is None:
             eta = np.zeros_like(theta, dtype=bool)
         p[eta] = 0.  # destroy the polarisation pattern
 
@@ -366,7 +367,6 @@ class Sky(Environment):
         :param phi_t: the heading tilt (roll)
         :return:
         """
-        from ephem import Sun
         from datetime import datetime
         from utils import get_seville_observer
 
