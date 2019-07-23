@@ -456,4 +456,34 @@ def get_noise(theta, phi, eta=0., mode="uniform"):
 
 
 if __name__ == "__main__":
-    create_paths("corridor")
+    # create_paths("corridor")
+    import matplotlib.pyplot as plt
+
+    stats = np.load("../data/pi-stats-corridor.npz")
+
+    ipaths = stats["ipath"]
+    opaths = stats["opath"]
+    d_xs = stats["d_x"]
+    d_cs = stats["d_c"]
+    max_alts = stats["max_alt"]
+    noises = stats["noise"]
+    un_max_alts = np.sort(np.unique(max_alts))
+    un_noises = np.sort(np.unique(noises))
+
+    plt.figure("Inclinations", figsize=(15, 5))
+    for j, max_alt in enumerate(un_max_alts):
+        for id, noise in enumerate(un_noises):
+            ipath = ipaths[np.all([max_alt == max_alts, noise == noises], axis=0)][0]
+            opath = opaths[np.all([max_alt == max_alts, noise == noises], axis=0)][0]
+            plot_route(opath, ipath, id=id, label=r'$\eta = %.1f$' % noise, subplot=101 + len(un_max_alts) * 10 + j)
+    plt.legend()
+
+    plt.figure("Disturbances", figsize=(15, 5))
+    for j, noise in enumerate(un_noises):
+        for id, max_alt in enumerate(un_max_alts):
+            ipath = ipaths[np.all([max_alt == max_alts, noise == noises], axis=0)][0]
+            opath = opaths[np.all([max_alt == max_alts, noise == noises], axis=0)][0]
+            plot_route(opath, ipath, id=id, label=r'$I = %.1f$' % max_alt, subplot=101 + len(un_max_alts) * 10 + j)
+    plt.legend()
+    plt.show()
+
