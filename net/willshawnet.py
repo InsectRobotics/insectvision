@@ -7,7 +7,7 @@ import os
 # get path of the script
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 # load parameters
-with open(os.path.join(__dir__, 'Adin2016.yaml'), 'rb') as f:
+with open(os.path.join(__dir__, 'Ardin2016.yaml'), 'rb') as f:
     params = yaml.safe_load(f)
 
 GAIN = params['gain']

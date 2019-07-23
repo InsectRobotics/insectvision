@@ -6,7 +6,7 @@ import os
 cpath = os.path.dirname(os.path.abspath(__file__)) + '/'
 
 # load parameters
-with open(cpath + 'Adin2016.yaml', 'rb') as f:
+with open(cpath + 'Ardin2016.yaml', 'rb') as f:
     params = yaml.safe_load(f)
 
 GAIN = -.1 / params['gain']
