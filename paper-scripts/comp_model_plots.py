@@ -111,74 +111,59 @@ def noise_test(save=None, mode=0, repeats=10, **kwargs):
     modes = ['uniform', 'corridor', 'canopy']
     print "Mode:", modes[mode]
 
-    plt.figure("noise-%s" % modes[mode], figsize=(5, 5))
+    plt.figure("noise-%s" % modes[mode], figsize=(4, 3))
     n, omega = 60, 56
     etas = np.linspace(0, 1, 21)
     taus = np.zeros_like(etas)
     means = np.zeros_like(etas)
     ses = np.zeros_like(etas)
-    for i in xrange(10):
-        noise = np.ones(n, int)
-        # if mode > 0:
-        theta, phi, fit = angles_distribution(n, float(omega))
-        #     x, _, _ = sph2vec(theta, phi)
-        # else:
-        #     x = np.argsort(np.absolute(np.random.randn(n)))
+    data = []
+    theta, phi, fit = angles_distribution(n, float(omega))
+    for i in xrange(repeats):
         for ii, eta in enumerate(etas):
             noise = get_noise(theta, phi, eta, mode=modes[mode])
-            # if mode == 0:
-            #     noise[:] = 0
-            #     noise[x[:int(eta * float(n))]] = 1
-            # else:
-            #     noise[:] = 0
-            #     if mode > 1:
-            #         noise[x > (1 - 2 * eta)] = 1
-            #     else:
-            #         noise[np.abs(x) > (1 - eta)] = 1
             d_err, d_eff, tau, _, _ = evaluate(
                 n=n, omega=omega, noise=noise, verbose=False, tilting=True, **kwargs
             )
+            data.append([tau, d_err])
             means[ii] = (means[ii] * i + d_err.mean()) / (i + 1)
             ses[ii] = (ses[ii] * i + d_err.std() / np.sqrt(d_err.size)) / (i + 1)
             taus[ii] = (taus[ii] * i + tau.mean()) / (i + 1)
 
-            print "Noise level: %.2f (%03d) | Mean cost: %.2f +/- %.4f" % (eta, np.sum(noise), means[ii], ses[ii])
+            print "Noise level: %.2f (%03d) | Mean cost: %.2f +/- %.4f | tau: %.2f --> sigma: %2f" % (
+                eta, np.sum(noise), means[ii], ses[ii], taus[ii],  6. / taus[ii] + 6)
 
+        np.savez_compressed("../data/noise-%s.npz" % modes[mode], x=np.array(data)[:, 0], y=np.array(data)[:, 1])
+
+    sigmas = 6. / taus + 6.
     plt.fill_between(etas * 100, means-ses, means+ses, facecolor="grey")
     plt.plot(etas * 100, means, color="red", linestyle="-", label="tilting")
     plt.plot(etas * 100, taus * 45, color="red", linestyle="--", label="tau-tilting")
+    plt.plot(etas * 100, sigmas, color="red", linestyle="--", label="sigma-tilting")
 
     taus = np.zeros_like(etas)
     means = np.zeros_like(etas)
     ses = np.zeros_like(etas)
     for i in xrange(repeats):
-        noise = np.ones(n, int)
-        if mode > 0:
-            theta, phi, fit = angles_distribution(n, float(omega))
-            x, _, _ = sph2vec(theta, phi)
-        else:
-            x = np.argsort(np.absolute(np.random.randn(n)))
         for ii, eta in enumerate(etas):
-            if mode == 0:
-                noise[:] = 0
-                noise[x[:int(eta * float(n))]] = 1
-            else:
-                noise[:] = 0
-                if mode > 1:
-                    noise[x > (1 - 2 * eta)] = 1
-                else:
-                    noise[np.abs(x) > (1 - eta)] = 1
+            noise = get_noise(theta, phi, eta, mode=modes[mode])
             d_err, d_eff, tau, _, _ = evaluate(
                 n=n, omega=omega, noise=noise, verbose=False, tilting=False, **kwargs
             )
+            data.append([tau, d_err])
             means[ii] = (means[ii] * i + d_err.mean()) / (i + 1)
             ses[ii] = (ses[ii] * i + d_err.std() / np.sqrt(d_err.size)) / (i + 1)
             taus[ii] = (taus[ii] * i + tau.mean()) / (i + 1)
-            print "Noise level: %.2f (%03d) | Mean cost: %.2f +/- %.4f" % (eta, np.sum(noise), means[ii], ses[ii])
+            print "Noise level: %.2f (%03d) | Mean cost: %.2f +/- %.4f | tau: %.2f --> sigma: %2f" % (
+                eta, np.sum(noise), means[ii], ses[ii], taus[ii],  4. / taus[ii] + 2)
 
+        np.savez_compressed("../data/noise-%s.npz" % modes[mode], x=np.array(data)[:, 0], y=np.array(data)[:, 1])
+
+    sigmas = 4. / taus - 2.
     plt.fill_between(etas * 100, means-ses, means+ses, facecolor="grey", alpha=.5)
     plt.plot(etas * 100, means, color="black", linestyle="-", label="plane")
     plt.plot(etas * 100, taus * 45, color="black", linestyle="--", label="tau-plane")
+    plt.plot(etas * 100, sigmas, color="black", linestyle="--", label="sigma-plane")
 
     plt.ylim([0, 90])
     plt.yticks([0, 30, 60, 90], [r'%d$^\circ$' % o for o in [0, 30, 60, 90]])
@@ -810,7 +795,7 @@ def elevation_test(**kwargs):
 
 
 if __name__ == "__main__":
-    noise_test(mode=1, repeats=100)
+    noise_test(mode=0, repeats=100)
     # nb_neurons_test(mode=2, tilting=True, weighted=False, noise=.0)
     # gate_ring(sigma=np.deg2rad(13), shift=np.deg2rad(40))
     # noise2disturbance_plot()

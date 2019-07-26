@@ -119,6 +119,7 @@ class Sky(Environment):
         elif eta is None:
             eta = np.zeros_like(theta, dtype=bool)
         p[eta] = 0.  # destroy the polarisation pattern
+        y[eta] = 0.  # destroy the polarisation pattern
 
         self.__y = y
         self.__dop = p

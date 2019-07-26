@@ -1,9 +1,10 @@
 from world import load_routes, Hybrid
 from environment import Sky
-from compoundeye.geometry import angles_distribution
+from compoundeye.geometry import angles_distribution, fibonacci_sphere
 from code.compass import decode_sph
 from sphere.transform import sph2vec, vec2sph, tilt
 from net import CX
+from notebooks.results import get_noise
 
 from datetime import datetime
 import ephem
@@ -20,7 +21,7 @@ x_terrain = np.linspace(0, 10, 1001, endpoint=True)
 y_terrain = np.linspace(0, 10, 1001, endpoint=True)
 x_terrain, y_terrain = np.meshgrid(x_terrain, y_terrain)
 try:
-    z_terrain = np.load("terrain-%.2f.npz" % 0.6)["terrain"] * 100
+    z_terrain = np.load("terrain-%.2f.npz" % 0.6)["terrain"] * 1000 * .5
 except IOError:
     z_terrain = np.random.randn(*x_terrain.shape) / 50
 
@@ -79,6 +80,8 @@ def get_3d_direction(x, y, yaw, tau=.06):
 
 
 if __name__ == "__main__":
+    from notebooks.plots import plot_sky
+
     # sensor design
     n = 60
     omega = 56
@@ -95,7 +98,10 @@ if __name__ == "__main__":
     theta_s = np.array([np.pi/2 - sun.alt])
     phi_s = np.array([(sun.az + np.pi) % (2 * np.pi) - np.pi])
 
+    theta_sky, phi_sky = fibonacci_sphere(1000, 180)
+
     # ant-world
+    noise_type = "canopy"
     mode = "uneven"
     noise = 0.0
     ttau = .06
@@ -113,6 +119,13 @@ if __name__ == "__main__":
         d_c = []
         tau = []  # tortuosity
         ri = 0
+
+        print "Noise:", noise
+        sky.theta_s, sky.phi_s = np.pi/6, np.pi
+        eta = get_noise(theta_sky, phi_sky, noise, noise_type)
+        Y, P, A = sky(theta_sky, phi_sky, noise=eta)
+        plt.figure("Sky-%d-%s" % (noise * 10, noise_type), figsize=(7.5, 2.5))
+        plot_sky(phi_sky, theta_sky, Y, P, A)
 
         # for route in routes[::2]:
         for route in [routes[0]]:
@@ -137,7 +150,9 @@ if __name__ == "__main__":
                 theta_n, phi_n = tilt(theta_t, phi_t, theta, phi + yaw)
 
                 sky.theta_s, sky.phi_s = theta_s, phi_s
-                Y, P, A = sky(theta_n, phi_n, noise=noise)
+                eta = get_noise(theta, phi, noise, noise_type)
+
+                Y, P, A = sky(theta_n, phi_n, noise=eta)
 
                 r_tb1 = encode(theta, phi, Y, P, A)
                 yaw0 = yaw
@@ -206,7 +221,7 @@ if __name__ == "__main__":
             tau[-1] = np.array(tau[-1])
 
             if ri == ni * 10 or True:
-                plt.figure("cx-%s-%02d" % (mode, noise * 10), figsize=(1.5, 5))
+                plt.figure("cx-%s-%02d-%s" % (mode, noise * 10, noise_type), figsize=(1.5, 5))
                 plt.plot(opath[:, 0], opath[:, 1], 'C%d' % ni, alpha=.5)
                 plt.plot(ipath[:, 0], ipath[:, 1], 'C%d' % ni, label=r'$\eta = %.1f$' % noise)
                 # plt.plot(opath[:, 0], opath[:, 1], 'r-')
@@ -225,28 +240,28 @@ if __name__ == "__main__":
         tau_mean = np.mean(tau, axis=0)
         tau_se = np.std(tau, axis=0) / np.sqrt(len(tau))
 
-        plt.figure("distance-%s" % mode, figsize=(3, 3))
-        plt.fill_between(d_c[-1], d_x_mean - 3 * d_x_se, d_x_mean + 3 * d_x_se, facecolor='C%d' % ni, alpha=.5)
-        plt.plot(d_c[-1], d_x_mean, 'C%d' % ni, label=r'$\eta = %.1f$' % noise)
-        plt.ylim([0, 100])
-        plt.xlim([0, 200])
-        plt.legend()
-        # plt.ylabel(r"Distance from home [%]")
-        # plt.xlabel(r"Distance travelled / Turning point distance [%]")
-
-        plt.figure("tortuosity-%s" % mode, figsize=(3, 3))
-        plt.fill_between(d_c[-1], tau_mean - 3 * tau_se, tau_mean + 3 * tau_se, facecolor='C%d' % ni, alpha=.5)
-        plt.semilogy(d_c[-1], tau_mean, 'C%d' % ni, label=r'$\eta = %.1f$' % noise)
-        plt.ylim([0, 1000])
-        plt.xlim([0, 200])
-        plt.legend()
-        # plt.ylabel(r"Tortuosity of homebound route")
-        # plt.xlabel(r"Distance travelled / Turning point distance [%]")
+        # plt.figure("distance-%s" % mode, figsize=(3, 3))
+        # plt.fill_between(d_c[-1], d_x_mean - 3 * d_x_se, d_x_mean + 3 * d_x_se, facecolor='C%d' % ni, alpha=.5)
+        # plt.plot(d_c[-1], d_x_mean, 'C%d' % ni, label=r'$\eta = %.1f$' % noise)
+        # plt.ylim([0, 100])
+        # plt.xlim([0, 200])
+        # plt.legend()
+        # # plt.ylabel(r"Distance from home [%]")
+        # # plt.xlabel(r"Distance travelled / Turning point distance [%]")
+        #
+        # plt.figure("tortuosity-%s" % mode, figsize=(3, 3))
+        # plt.fill_between(d_c[-1], tau_mean - 3 * tau_se, tau_mean + 3 * tau_se, facecolor='C%d' % ni, alpha=.5)
+        # plt.semilogy(d_c[-1], tau_mean, 'C%d' % ni, label=r'$\eta = %.1f$' % noise)
+        # plt.ylim([0, 1000])
+        # plt.xlim([0, 200])
+        # plt.legend()
+        # # plt.ylabel(r"Tortuosity of homebound route")
+        # # plt.xlabel(r"Distance travelled / Turning point distance [%]")
 
         print "Noise:", noise
     plt.show()
 
-if __name__ == "__main__":
+if __name__ == "__main__2":
     tau = .6
 
     try:

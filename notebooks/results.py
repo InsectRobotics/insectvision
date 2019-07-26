@@ -38,7 +38,7 @@ def get_terrain(max_altitude=.5, tau=.6, x=None, y=None):
     if x is None or y is None:
         x, y = np.meshgrid(x_terrain, y_terrain)
     try:
-        z = np.load("data/terrain-%.2f.npz" % 0.6)["terrain"] * 1000 * max_altitude
+        z = np.load("../data/terrain-%.2f.npz" % 0.6)["terrain"] * 1000 * max_altitude
     except IOError:
         z = np.random.randn(*x.shape) / 50
         terrain = np.zeros_like(z)
@@ -439,13 +439,13 @@ def create_ephem_paths():
 
 
 def get_noise(theta, phi, eta=0., mode="uniform"):
-    noise = np.ones(theta.shape[0], int)
+    noise = np.ones(theta.size, int)
     if mode == "uniform":
-        x = np.argsort(np.absolute(np.random.randn(eta)))
+        x = np.argsort(np.absolute(np.random.randn(theta.size)))
         noise[:] = 0
-        noise[x[:int(eta * float(n))]] = 1
+        noise[x[:int(eta * float(theta.size))]] = 1
     else:
-        x, _, _ = sph2vec(theta, phi)
+        x, _, _ = sph2vec(theta, phi, zenith=True)
         noise[:] = 0
         if mode == "canopy":
             noise[x > (1 - 2 * eta)] = 1
@@ -456,10 +456,12 @@ def get_noise(theta, phi, eta=0., mode="uniform"):
 
 
 if __name__ == "__main__":
-    # create_paths("corridor")
-    import matplotlib.pyplot as plt
+    # create_paths("uniform")
 
-    stats = np.load("../data/pi-stats-corridor.npz")
+    import matplotlib.pyplot as plt
+    from plots import plot_route
+
+    stats = np.load("../data/pi-stats-uniform.npz")
 
     ipaths = stats["ipath"]
     opaths = stats["opath"]
