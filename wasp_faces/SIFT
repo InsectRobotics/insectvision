@@ -1,0 +1,24 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import cv2 as cv
+import skimage.segmentation
+import skimage.color as color
+
+img = cv.imread(#r'file path', cv.IMREAD_UNCHANGED)
+
+img_fz = skimage.segmentation.felzenszwalb(img)
+img_fz_col = color.label2rgb(img_fz, img, kind='avg')
+plt.imshow(img_fz_col)
+
+img_slic = skimage.segmentation.slic(img_fz_col, n_segments=200, compactness=10)
+#label2rgb replaces each discrete label with the average interior color
+img_av = color.label2rgb(img_slic, img_fz_col, kind='avg')
+plt.imshow(img_av)
+plt.show()
+
+gray= cv.cvtColor(img_av, cv.COLOR_BGR2GRAY)
+sift = cv.xfeatures2d.SIFT_create()
+kp = sift.detect(img_av,None)
+img_sift = cv.drawKeypoints(img_av,kp,None)
+plt.imshow(img_sift)
+plt.show()
