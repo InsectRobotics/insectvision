@@ -1,0 +1,27 @@
+import numpy as np
+import os
+import cv2
+from pathlib import Path
+from matplotlib import pyplot as plt
+
+dir = #r"file path"
+
+for filename in os.listdir(dir):
+    if filename.endswith(".jpg"):
+        #read image
+        path = (dir + '\\' + filename)
+        print(path)
+        src = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+
+        #denoise
+        dst = cv2.fastNlMeansDenoisingColored(src, None, 10, 10, 7, 21)
+        plt.subplot(121), plt.imshow(src)
+        plt.subplot(122), plt.imshow(dst)
+        plt.show()
+
+        #save image
+        file_no_ext = Path(dir + "\\" + filename).stem
+        cv2.imwrite(#fr"directory where images will be saved/{file_no_ext}_nobg.jpg" ,dst)
+
+    else:
+        continue
