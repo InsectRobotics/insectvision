@@ -11,7 +11,7 @@ __maintainer__ = "Evripidis Gkanias"
 
 
 from compoundeye.geometry import angles_distribution
-from environment import Sun, Sky, eps
+from environment import Sky, eps
 from world import load_routes, Hybrid
 from sphere.transform import sph2vec, vec2sph, tilt
 from code.compass import decode_sph
