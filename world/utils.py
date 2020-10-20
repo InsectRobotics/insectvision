@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from sphere.transform import eleadj
 
 import numpy as np
@@ -7,7 +8,7 @@ eps = np.finfo(float).eps  # type: float
 
 def sky_clearness(Z, Dh, I, kapa=1.041):
     """
-    
+
     :param Z: solar zenith angle
     :param Dh: horizontal diffuse irradiance
     :param I: normal incidence direct irradiance
@@ -19,7 +20,7 @@ def sky_clearness(Z, Dh, I, kapa=1.041):
 
 def sky_brightness(Dh, m, I_0):
     """
-    
+
     :param Dh: the horizontal diffuse irradiance
     :param m: the relative optical airmass
     :param I_0: the extraterrestrial irradiance
@@ -30,7 +31,7 @@ def sky_brightness(Dh, m, I_0):
 
 def water_content(Td):
     """
-    
+
     :param Td: (C) the three-hourly surface dew point temperature
     :return: the atmospheric precipitable water content, denoted W (cm)
     """
@@ -150,3 +151,15 @@ def pix2ang(pix, num_of_pixels=640):
     :param num_of_pixels:   the maximum number of pixels
     """
     return np.pi * pix.astype(float) / num_of_pixels
+
+
+def shifted_datetime(roll_back_days=153, lower_limit=7.5, upper_limit=19.5):
+    date_time = datetime.now() - timedelta(days=roll_back_days)
+    if lower_limit is not None and upper_limit is not None:
+        uhours = int(upper_limit // 1)
+        uminutes = timedelta(minutes=(upper_limit % 1) * 60)
+        lhours = int(lower_limit // 1)
+        lminutes = timedelta(minutes=(lower_limit % 1) * 60)
+        if (date_time - uminutes).hour > uhours or (date_time - lminutes).hour < lhours:
+            date_time = date_time + timedelta(hours=12)
+    return date_time

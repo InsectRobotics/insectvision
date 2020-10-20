@@ -227,7 +227,7 @@ if __name__ == "__main__":
     theta_s_1, phi_s_1, _ = vec2sph(R.dot(v_s), zenith=True)
     theta_s_2, phi_s_2 = tilt(theta_t, phi_t, theta_s, phi_s)
 
-    print "Elevation:",  np.all(np.isclose(theta_s_1, theta_s_2)),
-    print "--- Azimuth:", np.all(np.isclose(phi_s_1, phi_s_2))
+    print("Elevation:",  np.all(np.isclose(theta_s_1, theta_s_2)), end="")
+    print("--- Azimuth:", np.all(np.isclose(phi_s_1, phi_s_2)))
 
 

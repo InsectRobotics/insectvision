@@ -1,13 +1,15 @@
 import numpy as np
 from scipy.special import expit
-from base import Network, RNG
+from net.base import Network, RNG
 import yaml
 import os
 
 # get path of the script
-__dir__ = os.path.dirname(os.path.abspath(__file__)) + '/'
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+__data__ = os.path.join(__dir__, "..", "data")
+
 # load parameters
-with open(__dir__ + 'Ardin2016.yaml', 'rb') as f:
+with open(os.path.join(__data__, "net",  'Ardin2016.yaml'), 'rb') as f:
     params = yaml.safe_load(f)
 
 GAIN = -1. / params['gain']
@@ -513,14 +515,14 @@ def get_flow(heading, velocity, r_sensors):
     translation = np.append(velocity, np.zeros(1))
     rotation = np.zeros(3)
     img_flow = image_motion_flow(translation, rotation, r_sensors)
-    print "img_flow:", img_flow.shape
+    print("img_flow:", img_flow.shape)
     tn_pref = tn_axes(heading)
-    print "tn_axes:", tn_pref.shape
+    print("tn_axes:", tn_pref.shape)
 
     flow_tn_1 = translatory_flow(r_sensors, tn_pref[0])
-    print "trans_flow_1:", flow_tn_1.shape
+    print("trans_flow_1:", flow_tn_1.shape)
     flow_tn_2 = translatory_flow(r_sensors, tn_pref[1])
-    print "trans_flow_2:", flow_tn_2.shape
+    print("trans_flow_2:", flow_tn_2.shape)
 
     lr_1 = linear_range_model(flow_tn_1, img_flow, w=.1)
     lr_2 = linear_range_model(flow_tn_2, img_flow, w=.1)
@@ -553,7 +555,7 @@ if __name__ == "__main__":
         tau_phi = np.pi    # 60 deg
         condition = Hybrid(tau_x=step, tau_phi=tau_phi)
         agent_name = create_agent_name(date, sky_type, step, fov[0], fov[1])
-        print agent_name
+        print(agent_name)
 
         world = load_world()
         world.enable_pol_filters(enable_pol)
@@ -571,25 +573,25 @@ if __name__ == "__main__":
         xyphi = np.array([[x, y, phi] for x, y, _, phi in rt])
         xy = xyphi[:, :2]
         phi = (xyphi[:, 2] + np.pi) % (2 * np.pi) - np.pi  # type: np.ndarray
-        print "xy:", xy.shape
+        print("xy:", xy.shape)
 
         # velocities in each timestep
         v = np.vstack([np.array([0.0, 0.0]), np.diff(xy, axis=0)])
-        print "v: ", v.shape
+        print("v: ", v.shape)
 
         xy2 = np.cumsum(v, axis=0) + xy[0]
-        print "xy (reconstructed):", xy2.shape
-        print "Is reconstruction accurate?", np.allclose(xy, xy2)
+        print("xy (reconstructed):", xy2.shape)
+        print("Is reconstruction accurate?", np.allclose(xy, xy2))
 
-        print "__phi_z:", phi.shape
+        print("__phi_z:", phi.shape)
         x, y = xy[:, 0], xy[:, 1]
         phi2 = np.roll((np.arctan2(v[:, 0], -v[:, 1]) + np.pi) % (2 * np.pi) - np.pi, -1)
-        print "__phi_z (reconstructed):", phi2.shape
-        print "Is reconstruction accurate?", np.allclose(phi[:-1], phi2[:-1])
+        print("__phi_z (reconstructed):", phi2.shape)
+        print("Is reconstruction accurate?", np.allclose(phi[:-1], phi2[:-1]))
 
         n_sensors = 200
         directions = np.linspace(-np.pi, np.pi, n_sensors, endpoint=False)
         D = np.column_stack((np.sin(directions), np.cos(directions),
                              np.zeros(n_sensors)))
 
-        print get_flow(0., np.array([0., 1.]), D) * .1
+        print(get_flow(0., np.array([0., 1.]), D) * .1)

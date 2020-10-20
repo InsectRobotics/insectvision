@@ -76,10 +76,10 @@ if __name__ == "__main__":
 
     vals1 = vals1.reshape((-1,))
     vals2 = vals2.reshape((-1,))
-    print vals1.shape, vals2.shape, dirs.shape
+    print(vals1.shape, vals2.shape, dirs.shape)
     A = build_a(vals2, dirs, centers[0], ksize)
     B = build_b(vals2, vals1, dirs, centers[0], ksize)
     W = gaussian_weight(ksize, dirs, centers[0], even=False)
-    print A.shape, B.shape, W.shape
+    print(A.shape, B.shape, W.shape)
     vpt = np.linalg.inv(A.T.dot(W ** 2).dot(A)).dot(A.T).dot(W ** 2).dot(B)
-    print vpt
+    print(vpt)

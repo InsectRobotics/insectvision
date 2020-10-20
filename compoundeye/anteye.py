@@ -1,5 +1,5 @@
 import numpy as np
-from model import CompoundEye
+from .model import CompoundEye
 
 
 class AntEye(CompoundEye):

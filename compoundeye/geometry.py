@@ -22,11 +22,11 @@ def angles_distribution(nb_lenses, fov, verbose=False):
         S_c = 4 * np.pi * np.square(R_c)  # area of the whole sphere (mm^2)
 
         if verbose:
-            print "Hexagon radius (r):", r_l
-            print "Lens radius (R):", R_l
-            print "Lens area (S):", S_l
-            print "Curvature radius (R_c):", R_c
-            print "Dome area (S_a):", S_a
+            print("Hexagon radius (r):", r_l)
+            print("Lens radius (R):", R_l)
+            print("Lens area (S):", S_l)
+            print("Curvature radius (R_c):", R_c)
+            print("Dome area (S_a):", S_a)
 
         with open(filename, "r") as f:
             params = yaml.load(f)
@@ -48,11 +48,11 @@ def angles_distribution(nb_lenses, fov, verbose=False):
         S_c = 4 * np.pi * np.square(R_c)  # area of the whole sphere (mm^2)
 
         if verbose:
-            print "Hexagon radius (r):", r_l
-            print "Lens radius (R):", R_l
-            print "Lens area (S):", S_l
-            print "Curvature radius (R_c):", R_c
-            print "Dome area (S_a):", S_a
+            print("Hexagon radius (r):", r_l)
+            print("Lens radius (R):", R_l)
+            print("Lens area (S):", S_l)
+            print("Curvature radius (R_c):", R_c)
+            print("Dome area (S_a):", S_a)
 
         coverage = S_a / S_c
         # compute the parameters of the sphere
@@ -143,4 +143,4 @@ def fibonacci_sphere(samples, fov):
 if __name__ == "__main__":
 
     sph = angles_distribution(60, 56)
-    print sph[0].shape, sph[1].shape, sph[2]
+    print(sph[0].shape, sph[1].shape, sph[2])

@@ -33,8 +33,8 @@ def build_a(img, center_x, center_y, kernel_size):
     count = 0
     home = img[center_x, center_y]  # storing the intensity of the center pixel
     a = np.zeros([kernel_size * kernel_size, 2])
-    for j in xrange(-mean, mean+1):  # advance the y
-        for i in xrange(-mean, mean+1):  # advance the x
+    for j in range(-mean, mean+1):  # advance the y
+        for i in range(-mean, mean+1):  # advance the x
             if i == 0:
                 ax = 0
             else:
@@ -141,7 +141,7 @@ if __name__ == "__main__":
 
     W = gaussian_weight(65, even=False)
     vpt = np.linalg.inv(A.T.dot(W ** 2).dot(A)).dot(A.T).dot(W ** 2)
-    print vpt.shape
+    print(vpt.shape)
     plt.subplot(247)
     plt.imshow(vpt[1].reshape((65, 65)), vmin=-1, vmax=1)
     plt.title("Vptx")
@@ -149,6 +149,6 @@ if __name__ == "__main__":
     plt.imshow(vpt[0].reshape((65, 65)), vmin=-1, vmax=1)
     plt.title("Vpty")
     vpt = np.linalg.inv(A.T.dot(W ** 2).dot(A)).dot(A.T).dot(W ** 2).dot(B)
-    print vpt
+    print(vpt)
 
     plt.show()

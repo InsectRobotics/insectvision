@@ -1,4 +1,4 @@
-from base import Network, RNG
+from net.base import Network, RNG
 
 import numpy as np
 import yaml
@@ -7,7 +7,7 @@ import os
 # get path of the script
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 # load parameters
-with open(os.path.join(__dir__, 'Ardin2016.yaml'), 'rb') as f:
+with open(os.path.join(__dir__, '../data/net/Ardin2016.yaml'), 'rb') as f:
     params = yaml.safe_load(f)
 
 GAIN = params['gain']
@@ -152,8 +152,8 @@ def generate_pn2kc_weights(nb_pn, nb_kc, min_pn=5, max_pn=21, aff_pn2kc=None, nb
 
 if __name__ == "__main__":
     from world import load_world, load_routes
-    from agent.visualiser import Visualiser
-    from world.conditions import Hybrid
+    from agent import Visualiser
+    from world import Hybrid
 
     world = load_world()
     routes = load_routes()
@@ -176,10 +176,10 @@ if __name__ == "__main__":
     for x, y, z, phi in world.routes[-1]:
 
         if vis.is_quit():
-            print "QUIT!"
+            print("QUIT!")
             break
-
-        img, _ = world.draw_panoramic_view(x, y, z, phi)
+        print(x, y, z, phi)
+        img = world.draw_panoramic_view(x, y, z, phi)
         inp = np.array(img).reshape((-1, 3))
         en = nn(inp.flatten())
 

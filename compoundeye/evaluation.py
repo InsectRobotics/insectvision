@@ -1,7 +1,7 @@
 from compoundeye.geometry import angles_distribution, fibonacci_sphere
 from sphere.transform import tilt
 from environment import Sky, eps, spectrum_influence, spectrum
-from environment.sky import T_L
+from world.sky import T_L
 from compoundeye import POLCompassDRA
 from sphere import azidist
 

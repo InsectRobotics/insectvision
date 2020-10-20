@@ -1,4 +1,4 @@
-from simple import *
+from .simple import *
 
 
 def horn_schunck(im1, im2, alpha=0.001, n_iter=8):

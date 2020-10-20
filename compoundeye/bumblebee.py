@@ -1,6 +1,6 @@
 import numpy as np
-from model import CompoundEye
-from beeeye import load_both_eyes
+from .model import CompoundEye
+from .beeeye import load_both_eyes
 
 
 class BumbleBeeEye(CompoundEye):

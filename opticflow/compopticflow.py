@@ -1,4 +1,4 @@
-from compound import *
+from .compound import *
 from numpy.linalg import LinAlgError
 
 
@@ -8,7 +8,7 @@ def lucas_kanade(n_val, o_val, rdir, rsensor, w=None, kernel=np.pi):
     w2 = np.square(w)
 
     v = np.zeros((rsensor.shape[0], 2))
-    for i in xrange(rsensor.shape[0]):
+    for i in range(rsensor.shape[0]):
         a = build_a(n_val, rdir, rsensor[i], kernel)
         b = build_b(n_val, o_val, rdir, rsensor[i], kernel)
 

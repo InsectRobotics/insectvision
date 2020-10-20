@@ -1,5 +1,5 @@
 import numpy as np
-from transform import sph2vec, vec2sph
+from .transform import sph2vec, vec2sph
 
 
 def angle_between(ang1, ang2, sign=True):

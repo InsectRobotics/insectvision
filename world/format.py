@@ -1,5 +1,5 @@
 import numpy as np
-from utils import pix2sph
+from .utils import pix2sph
 from sphere import vec2sph
 
 
